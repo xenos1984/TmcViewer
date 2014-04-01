@@ -1,0 +1,25 @@
+* {font-family: Liberation Sans, Arial, sans-serif}
+pre {font-family: Liberation Mono, Courier New, monospace}
+
+th, td {text-align: left}
+
+table.statistics tr td {text-align: right; min-width: 60px}
+table.statistics tr th {text-align: center; min-width: 80px}
+
+table.tmcraw tr th, table.tmcraw tr td, table.tmcosm tr th, table.tmcosm tr td, table.tmccheck tr th, table.tmccheck tr td, table.statistics tr th, table.statistics tr td {border: 1px solid grey}
+table.tmcraw, table.tmcosm, table.tmccheck, table.statistics {border-collapse: collapse}
+
+td.correct, td.present {background-color: #aaffaa}
+td.wrong, td.missing, td.toomany {background-color: #ffaaaa}
+
+ul.normal li {color: black}
+ul.urgent li {color: darkblue}
+ul.extreme li {color: darkred}
+ul.silent li {color: darkgray}
+
+#josm {left: 10px; right: 24px; height: 20px; border: none}
+
+li.construction {color: #ffaa00}
+li.closed {color: #cc0000}
+
+ul {padding-left: 20px}
