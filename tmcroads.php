@@ -32,7 +32,9 @@ function tmc_roadlist(){
 		$roads = array();
 		$segments = find_rs_segments($data);
 		$points = find_segment_points($data);
-		$opurl = "http://overpass-api.de/api/interpreter?data=" . rawurlencode("(relation[\"type\"=\"tmc:point\"][\"table\"=\"$cid:$tabcd\"][\"seg_lcd\"=\"$lcd\"];>;);out meta;");
+		$road_lcd = $points[0]['road_lcd'];
+		$opurl = "http://overpass-api.de/api/interpreter?data=" . rawurlencode("((relation[\"type\"=\"tmc:point\"][\"table\"=\"$cid:$tabcd\"][\"seg_lcd\"=\"$lcd\"];relation[\"type\"=\"tmc:link\"][\"table\"=\"$cid:$tabcd\"][\"road_lcd\"=\"$road_lcd\"];);>;);out meta;");
+
 	}else{
 		header("HTTP/1.0 404 Not Found");
 		header("Content-type: text/plain");
@@ -74,6 +76,7 @@ function tmc_roadlist(){
 <th rowspan="2">OSM</th>
 <th rowspan="2">Type</th>
 <th rowspan="2">Name</th>
+<th rowspan="2">present</th>
 
 <th colspan="10">Roles</th>
 </tr>
@@ -94,6 +97,12 @@ foreach($points as $i => $point) {
 
 	$rels_point = get_osm_rels($osmxp,$cid,$tabcd,$point['lcd']);
 
+	if($point['presentpos'] && !$point['presentneg'])
+		$point['present'] = 'positive';
+	else if($point['presentneg'] && !$point['presentpos'])
+		$point['present'] = 'negative';
+
+
 	// Data for this Point
 	echo "<tr>";
 	write_main_data($point, $rels_point);
@@ -103,11 +112,10 @@ foreach($points as $i => $point) {
 	// Data for links to next Point
 	// Ignore last point of segments
 	if($point['pos_off_lcd'] && ($is_road || $i+1 < count($points))){
+		$rels_link = get_link_rels($osmxp,$cid,$tabcd,$point['lcd'],$point['pos_off_lcd']);
+
 		echo "<tr>";
-		echo "<td/>";
-		echo "<td>---</td>";
-		echo "<td/>";
-		echo "<td>Link</td>";
+		write_link_data($point, $rels_link);
 		echo "</tr>";
 	}
 }
@@ -119,11 +127,27 @@ foreach($points as $i => $point) {
 <?php
 }
 
+function write_link_data($point, $rels_link){
+
+
+	echo "<td/>";
+	echo "<td>".get_osm_html_links(get_osm_ids($rels_link))."</td>";
+	echo "<td/>";
+	echo "<td>Link</td>";
+	echo "<td/>";
+	$first = array_shift($rels_link);
+
+	echo get_role_field($first, "positive");
+	echo get_role_field($first, "negative");
+	echo get_role_field($first, "both");
+}
+
 function write_main_data($point, $rels_point){
 	echo "<td><a href=\"tmcview.php?cid=" . $point['cid'] . "&amp;tabcd=" . $point['tabcd'] . "&amp;lcd=" . $point['lcd'] . "\">".$point['lcd']."</a></td>";
-	echo "<td>".get_osm_links(get_osm_ids($rels_point))."</td>";
+	echo "<td>".get_osm_html_links(get_osm_ids($rels_point))."</td>";
 	echo "<td>".get_html_type($point)."</td>";
 	echo "<td>".array_desc($point)."</td>";
+	echo "<td>".$point['present']."</td>";
 }
 
 function write_relation_data($point, $rels_point){
@@ -140,7 +164,7 @@ function write_relation_data($point, $rels_point){
 	echo get_role_desc($first, "restaurant");
 }
 
-function get_osm_links($ids){
+function get_osm_html_links($ids){
 	$links = array();
   	foreach($ids as $id)
 		$links[] = "<a href=\"http://www.openstreetmap.org/browse/relation/$id\">$id</a>";
@@ -155,11 +179,33 @@ function get_osm_ids($rels){
 
 function get_html_type($point){
 	
-	return $point['class'].".".$point['tcd'].".".$point['stcd'];
+	return "<span title=\"".find_type($point)."\">".$point['class'].".".$point['tcd'].".".$point['stcd']."</span>";
 }
 
 function get_osm_rels($osmxp,$cid,$tabcd,$lcd){
 	$osmrels = $osmxp->query("/osm/relation[tag[@k='type'][@v='tmc:point']][tag[@k='table'][@v='$cid:$tabcd']][tag[@k='lcd'][@v='$lcd']]");
+	foreach($osmrels as $osmrel)
+	{
+		$rel = array();
+		$osmtags = $osmxp->query("tag", $osmrel);
+		foreach($osmtags as $osmtag)
+			$rel[$osmtag->getAttribute('k')] = $osmtag->getAttribute('v');
+
+		$rel['member'] = array();
+		$osmmembers = $osmxp->query("member", $osmrel);
+		foreach($osmmembers as $member)
+			$rel['member'][] = array('role'=>$member->getAttribute('role'),'type'=>$member->getAttribute('type'),'id'=>$member->getAttribute('ref'));
+
+		$rels[$osmrel->getAttribute('id')] = $rel;
+		$keys = array_merge($keys, array_keys($rel));
+	}
+
+	return $rels;
+}
+
+function get_link_rels($osmxp,$cid,$tabcd,$neg_lcd,$pos_lcd){
+	$osmrels = $osmxp->query("/osm/relation[tag[@k='type'][@v='tmc:link']][tag[@k='table'][@v='$cid:$tabcd']][tag[@k='neg_lcd'][@v='$neg_lcd']][tag[@k='pos_lcd'][@v='$pos_lcd']]");
+
 	foreach($osmrels as $osmrel)
 	{
 		$rel = array();
