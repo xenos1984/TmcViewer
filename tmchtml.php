@@ -2,16 +2,16 @@
 include_once("tmcutils.php");
 include_once("tmcpdo.php");
 
-function write_line($data)
+function write_line($data, $dest="tmcview")
 {
-	echo "<tr><td><a href=\"tmcview.php?cid=" . $data['cid'] . "&amp;tabcd=" . $data['tabcd'] . "&amp;lcd=" . $data['lcd'] . "\">" . $data['cid'] . ":" . $data['tabcd'] . ":" . $data['lcd'] . "</a></td><td>" . $data['class'] . $data['tcd'] . "." . $data['stcd'] . "</td><td>" . array_desc($data) . "</td></tr>\n";
+	echo "<tr><td><a href=\"$dest.php?cid=" . $data['cid'] . "&amp;tabcd=" . $data['tabcd'] . "&amp;lcd=" . $data['lcd'] . "\">" . $data['cid'] . ":" . $data['tabcd'] . ":" . $data['lcd'] . "</a></td><td>" . $data['class'] . $data['tcd'] . "." . $data['stcd'] . "</td><td>" . array_desc($data) . "</td></tr>\n";
 }
 
-function write_table($array)
+function write_table($array, $dest="tmcview")
 {
 	echo "<table class=\"tmclist\">\n";
 	foreach($array as $data)
-		write_line($data);
+		write_line($data, $dest);
 	echo "</table>\n";
 }
 

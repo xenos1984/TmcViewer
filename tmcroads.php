@@ -1,9 +1,9 @@
 <?php
-// TODO: Variante für Ringe
 include_once('tmcpdo.php');
 include_once('tmchtml.php');
 
 // Angabe von cid, tabcd, lcd für ein L1.*
+// TODO: bei fehlender Angabe_ Liste der Straßen
 
 function tmc_roadlist(){
 
@@ -14,9 +14,7 @@ function tmc_roadlist(){
 	if($data = find_location('roads', $cid, $tabcd, $lcd))
 	{
 		$is_road = true;
-		$admins = array();
-		$others = array();
-		$roads = array();
+		$road = $data;
 		$segments = find_rs_segments($data);
 		$psegs = find_road_points($data);
 		$points = array_reduce($psegs, "array_merge", array());
@@ -27,10 +25,8 @@ function tmc_roadlist(){
 		if($data && ($data2 = find_location('soffsets', $cid, $tabcd, $lcd)))
 			$data = array_merge($data, $data2);
 
-		$admins = array();
-		$others = array();
-		$roads = array();
-		$segments = find_rs_segments($data);
+		$road = find_road($data);
+		$segments = find_rs_segments($road);
 		$points = find_segment_points($data);
 		$road_lcd = $points[0]['road_lcd'];
 		$opurl = "http://overpass-api.de/api/interpreter?data=" . rawurlencode("((relation[\"type\"=\"tmc:point\"][\"table\"=\"$cid:$tabcd\"][\"seg_lcd\"=\"$lcd\"];relation[\"type\"=\"tmc:link\"][\"table\"=\"$cid:$tabcd\"][\"road_lcd\"=\"$road_lcd\"];);>;);out meta;");
@@ -45,11 +41,13 @@ function tmc_roadlist(){
 	curl_setopt($ch, CURLOPT_URL, $opurl);
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 	curl_setopt($ch, CURLOPT_HEADER, 0);
-	curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+	curl_setopt($ch, CURLOPT_TIMEOUT, 45);
 	$opdata = curl_exec($ch);
 
-	if($opdata === FALSE)
+	if($opdata === FALSE){
 		$opdata = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<osm version=\"0.6\" generator=\"Overpass API\">\n</osm>";
+		$error = true;
+	}
 
 	curl_close($ch);
 
@@ -70,7 +68,26 @@ function tmc_roadlist(){
 <body>
 <h1>Status for <?php echo "$cid:$tabcd:$lcd - " . array_desc($data); ?></h1>
 
-<table id="listroad">
+<?php
+if($error){
+?>
+<div class="error">
+	Error: No response of overpass-api! Retry later.
+</div>
+<?php
+}
+?>
+
+<h3>Road:</h3>
+<table>
+<?php write_line($road,'tmcroads'); ?>
+</table>
+<h3>Segments:</h3>
+<table>
+<?php write_table($segments,'tmcroads'); ?>
+</table>
+
+<table class="roads">
 <tr>
 <th rowspan="2">LCD</th>
 <th rowspan="2">OSM</th>
@@ -140,6 +157,8 @@ function write_link_data($point, $rels_link){
 	echo get_role_field($first, "positive");
 	echo get_role_field($first, "negative");
 	echo get_role_field($first, "both");
+
+	echo "<td colspan=\"6\" />";
 }
 
 function write_main_data($point, $rels_point){
@@ -156,12 +175,12 @@ function write_relation_data($point, $rels_point){
 	echo get_role_field($first, "negative");
 	echo get_role_field($first, "both");
 
-	echo get_role_desc($first, "entry");
-	echo get_role_desc($first, "exit");
-	echo get_role_desc($first, "ramp");
-	echo get_role_desc($first, "parking");
-	echo get_role_desc($first, "fuel");
-	echo get_role_desc($first, "restaurant");
+	echo get_role_desc($first, "entry", get_role_requirement("entry", $point));
+	echo get_role_desc($first, "exit", get_role_requirement("exit", $point));
+	echo get_role_desc($first, "ramp", get_role_requirement("ramp", $point));
+	echo get_role_desc($first, "parking",  get_role_requirement("parking", $point));
+	echo get_role_desc($first, "fuel",  get_role_requirement("fuel", $point));
+	echo get_role_desc($first, "restaurant",  get_role_requirement("restaurant", $point));
 }
 
 function get_osm_html_links($ids){
@@ -243,7 +262,7 @@ function get_role_field($rel, $role) {
 	}
 }
 
-// require: false, true, both, positive, negative
+// require: false, both, positive, negative
 function get_role_desc($rel, $role, $require=false){
 	$rolesP = get_roles($rel, "positive:".$role);
 	$rolesN = get_roles($rel, "negative:".$role);
@@ -256,23 +275,23 @@ function get_role_desc($rel, $role, $require=false){
 		// present in both directions
 		$class = "correct";
 		$text = "found";
-		if($require == "negative"){
+		if($require === "negative"){
 			$class = "ugly";
 			$text .= ", neg not needed";
 		}
-		if($require == "positive"){
+		if($require === "positive"){
 			$class = "ugly";
-			$text .= ", neg not needed";
+			$text .= ", pos not needed";
 		}
 	} else if($rolesP && !$rolesN){
 		// Only positive
 		$class = "correct";
 		$text = "pos only";
-		if($require == "negative"){
+		if($require === "negative"){
 			$class = "ugly";
 			$text .= ", not needed";
 		}
-		if($require == "negative" || $require == "both"){
+		if($require === "negative" || $require == "both"){
 			$class = "missing";
 			$text .= ", neg missing";
 		}
@@ -282,11 +301,11 @@ function get_role_desc($rel, $role, $require=false){
 		$class = "correct";
 		$text = "neg only";
 
-		if($require == "positive"){
+		if($require === "positive"){
 			$class = "ugly";
 			$text .= ", not needed";
 		}
-		if($require == "positive" || $require == "both"){
+		if($require === "positive" || $require === "both"){
 			$class = "missing";
 			$text .= ", pos missing";
 		}
@@ -300,18 +319,47 @@ function get_role_desc($rel, $role, $require=false){
 function get_roles($rel, $role){
 	$count = 0;
 
-	// TODO: startWith both
-	if($role == "both")
-		$roles += get_roles($rel, "");
+	if(substr($role,0,4) === "both")
+		$count += get_roles($rel, substr($role,4));
 
 	foreach($rel['member'] as $member)
-		if($member['role'] == $role)
+		if(trim($member['role']) == trim($role))
 			$count++;
 
 	return $count;
 }
 
+$role_req = array(
+		'P.1.1' => array('exit','entry'),		// AK
+		'P.1.2' => array('exit','entry'),		// AD
+		'P.1.3' => array('exit','entry'),		// AS
+		'P.1.4' => array('exit'),			// Ausfahrt
+		'P.1.5' => array('entry'),			// Einfahrt
+
+		'P.3.3' => array('parking','fuel','restaurant'),	// Raststätte
+		'P.3.4' => array('parking'),				// Rastplatz
+		'P.3.7' => array('parking'),				// park and ride
+		'P.3.8' => array('parking'),				// Parkplatz
+		'P.3.9' => array('parking'),				// Parkplatz + Kiosk
+		'P.3.10' => array('parking'),				// Parkplatz + Kiosk + WC
+		'P.3.21' => array('parking'),				// Parkhaus
+		'P.3.22' => array('parking'),				// Tiefgarage
+	);
+
+function get_role_requirement($role, $point){
+	global $role_req;
+
+	$type = $point['class'].".".$point['tcd'].".".$point['stcd'];
+
+	$req = in_array($role, $role_req[$type]);	
+
+	if($req && $point['present'])
+		// Only for one direction
+		$req = $point['present'];
+
+	return $req;
+}
+
 tmc_roadlist();
 
 ?>
-
