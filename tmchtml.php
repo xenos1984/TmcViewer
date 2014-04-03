@@ -6,6 +6,9 @@ function write_line($data)
 {
 	if($data['class'] == 'L')
 		$status_link = " <span class=\"smaller\">(<a href=\"tmcroads.php?cid=" . $data['cid'] . "&amp;tabcd=" . $data['tabcd'] . "&amp;lcd=" . $data['lcd'] . "\">status</a>)</span>";
+	else
+		$status_link = "";
+
 	echo "<tr><td><a href=\"tmcview.php?cid=" . $data['cid'] . "&amp;tabcd=" . $data['tabcd'] . "&amp;lcd=" . $data['lcd'] . "\">" . $data['cid'] . ":" . $data['tabcd'] . ":" . $data['lcd'] . "</a>$status_link</td><td>" . $data['class'] . $data['tcd'] . "." . $data['stcd'] . "</td><td>" . array_desc($data) . "</td></tr>\n";
 }
 
