@@ -21,6 +21,10 @@ ul.urgent li {color: darkblue}
 ul.extreme li {color: darkred}
 ul.silent li {color: darkgray}
 
+.smaller { font-size: 0.75em; }
+
+div.error { display: block; background-color:#ffaaaa; border: 1px solid black; }
+
 #josm {left: 10px; right: 24px; height: 20px; border: none}
 
 li.construction {color: #ffaa00}

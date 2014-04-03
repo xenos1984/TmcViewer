@@ -5,7 +5,12 @@ include_once('tmchtml.php');
 // Angabe von cid, tabcd, lcd für ein L1.*
 // TODO: bei fehlender Angabe_ Liste der Straßen
 
+$roadlist_status = array();
+$current_status = array();
+
 function tmc_roadlist(){
+	global $current_status;
+	global $roadlist_status;
 
 	$cid = (int)$_REQUEST['cid'];
 	$tabcd = (int)$_REQUEST['tabcd'];
@@ -80,14 +85,15 @@ if($error){
 
 <h3>Road:</h3>
 <table>
-<?php write_line($road,'tmcroads'); ?>
+<?php write_line($road); ?>
 </table>
 <h3>Segments:</h3>
 <table>
-<?php write_table($segments,'tmcroads'); ?>
+<?php write_table($segments); ?>
 </table>
 
-<table class="roads">
+<table class="roads" style="margin-bottom: 10em;">
+<thead>
 <tr>
 <th rowspan="2">LCD</th>
 <th rowspan="2">OSM</th>
@@ -97,6 +103,7 @@ if($error){
 
 <th colspan="10">Roles</th>
 </tr>
+
 <tr>
 <th>pos</th>
 <th>neg</th>
@@ -108,6 +115,8 @@ if($error){
 <th>fuel</th>
 <th>restaurant</th>
 </tr>
+</thead>
+<tbody>
 <?php
 
 foreach($points as $i => $point) {
@@ -121,23 +130,62 @@ foreach($points as $i => $point) {
 
 
 	// Data for this Point
+	$current_status = array();
 	echo "<tr>";
 	write_main_data($point, $rels_point);
 	write_relation_data($point, $rels_point);
 	echo "</tr>";
 
+	if($current_status['error'])
+		$roadlist_status['error']++;
+	else if($current_status['missing'])
+		$roadlist_status['missing']++;
+	else
+		$roadlist_status['ok']++;
+
 	// Data for links to next Point
 	// Ignore last point of segments
 	if($point['pos_off_lcd'] && ($is_road || $i+1 < count($points))){
 		$rels_link = get_link_rels($osmxp,$cid,$tabcd,$point['lcd'],$point['pos_off_lcd']);
-
+		$current_status = array();
 		echo "<tr>";
 		write_link_data($point, $rels_link);
 		echo "</tr>";
+		if($current_status['error'])
+			$roadlist_status['link_error']++;
+		else if($current_status['missing'])
+			$roadlist_status['link_missing']++;
+		else
+			$roadlist_status['link_ok']++;
 	}
 }
 ?>
+</thead>
 </table>
+
+<div style="position:fixed;bottom:0px;width:100%;clear:both;background-color:white;">
+<table class="roads" style="width:100%">
+<tr>
+<td colspan="12">
+<h3>Status:</h3>
+</td>
+</tr>
+<tr>
+<td colspan="6">
+Points:<br/>
+OK: <?php echo (int)$roadlist_status['ok']; ?> <br/>
+Missing: <?php echo (int)$roadlist_status['missing']; ?> <br/>
+Error: <?php echo (int)$roadlist_status['error']; ?>
+</td>
+<td colspan="6">
+Links:<br/>
+OK: <?php echo (int)$roadlist_status['link_ok']; ?> <br/>
+Missing: <?php echo (int)$roadlist_status['link_missing']; ?> <br/>
+Error: <?php echo (int)$roadlist_status['link_error']; ?>
+</td>
+</table>
+</div>
+
 
 </body>
 </html>
@@ -148,7 +196,13 @@ function write_link_data($point, $rels_link){
 
 
 	echo "<td/>";
-	echo "<td>".get_osm_html_links(get_osm_ids($rels_link))."</td>";
+
+	$links= get_osm_html_links(get_osm_ids($rels_link));
+	if($links)
+		echo "<td>".$links."</td>";
+	else
+		echo "<td class=\"missing\"> </td>";
+
 	echo "<td/>";
 	echo "<td>Link</td>";
 	echo "<td/>";
@@ -163,7 +217,13 @@ function write_link_data($point, $rels_link){
 
 function write_main_data($point, $rels_point){
 	echo "<td><a href=\"tmcview.php?cid=" . $point['cid'] . "&amp;tabcd=" . $point['tabcd'] . "&amp;lcd=" . $point['lcd'] . "\">".$point['lcd']."</a></td>";
-	echo "<td>".get_osm_html_links(get_osm_ids($rels_point))."</td>";
+
+	$links= get_osm_html_links(get_osm_ids($rels_point));
+	if($links)
+		echo "<td>".$links."</td>";
+	else
+		echo "<td class=\"missing\"> </td>";
+
 	echo "<td>".get_html_type($point)."</td>";
 	echo "<td>".array_desc($point)."</td>";
 	echo "<td>".$point['present']."</td>";
@@ -245,25 +305,31 @@ function get_link_rels($osmxp,$cid,$tabcd,$neg_lcd,$pos_lcd){
 }
 
 function get_role_field($rel, $role) {
+	global $current_status;
+
 	$roles = get_roles($rel, $role);
-
-
 
 	if($roles>0)
 		return "<td class=\"correct\">found</td>";
 	else {
 		$sum = get_roles($rel, "positive") + get_roles($rel, "negative") + get_roles($rel, "both");
-		if($sum == 0)
-			return "<td class=\"missing\">missing</td>";			
-		else if($role != "both" && !get_roles($rel, "both"))
+		if($sum == 0){
+			if($role === "positive") {
+				$current_status['error'] = true;
+				return "<td class=\"missing\" colspan=\"3\">missing</td>";
+			}
+		} else if($role != "both" && !get_roles($rel, "both")){
+			$current_status['missing'] = true;
 			return "<td class=\"ugly\">missing?</td>";
-		else
+		} else
 			return "<td/>";
 	}
 }
 
 // require: false, both, positive, negative
 function get_role_desc($rel, $role, $require=false){
+	global $current_status;
+
 	$rolesP = get_roles($rel, "positive:".$role);
 	$rolesN = get_roles($rel, "negative:".$role);
 	$rolesB = get_roles($rel, "both:".$role);
@@ -312,7 +378,9 @@ function get_role_desc($rel, $role, $require=false){
 
 	} else if($require)
 			$class = $text = "missing";
-		
+	if($class != "correct" && $class != "")
+		$current_status['missing'] = true;
+	
 	return "<td class=\"$class\">$text</td>";
 }
 

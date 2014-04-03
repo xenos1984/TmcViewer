@@ -2,16 +2,18 @@
 include_once("tmcutils.php");
 include_once("tmcpdo.php");
 
-function write_line($data, $dest="tmcview")
+function write_line($data)
 {
-	echo "<tr><td><a href=\"$dest.php?cid=" . $data['cid'] . "&amp;tabcd=" . $data['tabcd'] . "&amp;lcd=" . $data['lcd'] . "\">" . $data['cid'] . ":" . $data['tabcd'] . ":" . $data['lcd'] . "</a></td><td>" . $data['class'] . $data['tcd'] . "." . $data['stcd'] . "</td><td>" . array_desc($data) . "</td></tr>\n";
+	if($data['class'] == 'L')
+		$status_link = " <span class=\"smaller\">(<a href=\"tmcroads.php?cid=" . $data['cid'] . "&amp;tabcd=" . $data['tabcd'] . "&amp;lcd=" . $data['lcd'] . "\">status</a>)</span>";
+	echo "<tr><td><a href=\"tmcview.php?cid=" . $data['cid'] . "&amp;tabcd=" . $data['tabcd'] . "&amp;lcd=" . $data['lcd'] . "\">" . $data['cid'] . ":" . $data['tabcd'] . ":" . $data['lcd'] . "</a>$status_link</td><td>" . $data['class'] . $data['tcd'] . "." . $data['stcd'] . "</td><td>" . array_desc($data) . "</td></tr>\n";
 }
 
-function write_table($array, $dest="tmcview")
+function write_table($array)
 {
 	echo "<table class=\"tmclist\">\n";
 	foreach($array as $data)
-		write_line($data, $dest);
+		write_line($data);
 	echo "</table>\n";
 }
 
@@ -28,8 +30,11 @@ function write_list($result)
 
 function write_link($id, $name, $links)
 {
-	if(array_key_exists($id, $links) && ($data = $links[$id]))
-		echo "<tr><td>$name</td><td><a href=\"tmcview.php?cid=" . $data['cid'] . "&amp;tabcd=" . $data['tabcd'] . "&amp;lcd=" . $data['lcd'] . "\">" . $data['cid'] . ":" . $data['tabcd'] . ":" . $data['lcd'] . "</a></td><td>" . $data['class'] . $data['tcd'] . "." . $data['stcd'] . "</td><td>" . array_desc($data) . "</td></tr>\n";
+	if(array_key_exists($id, $links) && ($data = $links[$id])){
+		if($data['class'] == 'L')
+			$status_link = " <span class=\"smaller\">(<a href=\"tmcroads.php?cid=" . $data['cid'] . "&amp;tabcd=" . $data['tabcd'] . "&amp;lcd=" . $data['lcd'] . "\">status</a>)</span>";
+		echo "<tr><td>$name</td><td><a href=\"tmcview.php?cid=" . $data['cid'] . "&amp;tabcd=" . $data['tabcd'] . "&amp;lcd=" . $data['lcd'] . "\">" . $data['cid'] . ":" . $data['tabcd'] . ":" . $data['lcd'] . "</a>$status_link</td><td>" . $data['class'] . $data['tcd'] . "." . $data['stcd'] . "</td><td>" . array_desc($data) . "</td></tr>\n";
+	}
 }
 
 function form_search()
