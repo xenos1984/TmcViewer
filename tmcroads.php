@@ -5,12 +5,15 @@ include_once('tmchtml.php');
 // Angabe von cid, tabcd, lcd für ein L1.*
 // TODO: bei fehlender Angabe_ Liste der Straßen
 
-$roadlist_status = array();
-$current_status = array();
+$roadlist_status = array('error' => 0, 'missing' => 0, 'ok' => 0, 'link_error' => 0, 'link_missing' => 0, 'link_ok' => 0);
+$current_status = array('error' => 0, 'missing' => 0);
 
-function tmc_roadlist(){
+function tmc_roadlist()
+{
 	global $current_status;
 	global $roadlist_status;
+
+	$error = false;
 
 	$cid = (int)$_REQUEST['cid'];
 	$tabcd = (int)$_REQUEST['tabcd'];
@@ -30,13 +33,16 @@ function tmc_roadlist(){
 		if($data && ($data2 = find_location('soffsets', $cid, $tabcd, $lcd)))
 			$data = array_merge($data, $data2);
 
+		$is_road = false;
 		$road = find_road($data);
 		$segments = find_rs_segments($road);
 		$points = find_segment_points($data);
-		$road_lcd = $points[0]['road_lcd'];
+		$road_lcd = $road['lcd'];
 		$opurl = "http://overpass-api.de/api/interpreter?data=" . rawurlencode("((relation[\"type\"=\"tmc:point\"][\"table\"=\"$cid:$tabcd\"][\"seg_lcd\"=\"$lcd\"];relation[\"type\"=\"tmc:link\"][\"table\"=\"$cid:$tabcd\"][\"road_lcd\"=\"$road_lcd\"];);>;);out meta;");
 
-	}else{
+	}
+	else
+	{
 		header("HTTP/1.0 404 Not Found");
 		header("Content-type: text/plain");
 		die("No data found for cid = $cid, tabcd = $tabcd and lcd = $lcd.");
@@ -49,7 +55,8 @@ function tmc_roadlist(){
 	curl_setopt($ch, CURLOPT_TIMEOUT, 45);
 	$opdata = curl_exec($ch);
 
-	if($opdata === FALSE){
+	if($opdata === false)
+	{
 		$opdata = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<osm version=\"0.6\" generator=\"Overpass API\">\n</osm>";
 		$error = true;
 	}
@@ -74,7 +81,8 @@ function tmc_roadlist(){
 <h1>Status for <?php echo "$cid:$tabcd:$lcd - " . array_desc($data); ?></h1>
 
 <?php
-if($error){
+if($error)
+{
 ?>
 <div class="error">
 	Error: No response of overpass-api! Retry later.
@@ -119,18 +127,19 @@ if($error){
 <tbody>
 <?php
 
-foreach($points as $i => $point) {
-
-	$rels_point = get_osm_rels($osmxp,$cid,$tabcd,$point['lcd']);
+foreach($points as $i => $point)
+{
+	$rels_point = get_osm_rels($osmxp, $cid, $tabcd, $point['lcd']);
 
 	if($point['presentpos'] && !$point['presentneg'])
 		$point['present'] = 'positive';
 	else if($point['presentneg'] && !$point['presentpos'])
 		$point['present'] = 'negative';
-
+	else
+		$point['present'] = '';
 
 	// Data for this Point
-	$current_status = array();
+	$current_status = array('error' => 0, 'missing' => 0);
 	echo "<tr>";
 	write_main_data($point, $rels_point);
 	write_relation_data($point, $rels_point);
@@ -145,9 +154,10 @@ foreach($points as $i => $point) {
 
 	// Data for links to next Point
 	// Ignore last point of segments
-	if($point['pos_off_lcd'] && ($is_road || $i+1 < count($points))){
-		$rels_link = get_link_rels($osmxp,$cid,$tabcd,$point['lcd'],$point['pos_off_lcd']);
-		$current_status = array();
+	if($point['pos_off_lcd'] && ($is_road || $i+1 < count($points)))
+	{
+		$rels_link = get_link_rels($osmxp, $cid, $tabcd, $point['lcd'], $point['pos_off_lcd']);
+		$current_status = array('error' => 0, 'missing' => 0);
 		echo "<tr>";
 		write_link_data($point, $rels_link);
 		echo "</tr>";
@@ -186,18 +196,16 @@ Error: <?php echo (int)$roadlist_status['link_error']; ?>
 </table>
 </div>
 
-
 </body>
 </html>
 <?php
 }
 
-function write_link_data($point, $rels_link){
-
-
+function write_link_data($point, $rels_link)
+{
 	echo "<td/>";
 
-	$links= get_osm_html_links(get_osm_ids($rels_link));
+	$links = get_osm_html_links(get_osm_ids($rels_link));
 	if($links)
 		echo "<td>".$links."</td>";
 	else
@@ -208,17 +216,21 @@ function write_link_data($point, $rels_link){
 	echo "<td/>";
 	$first = array_shift($rels_link);
 
-	echo get_role_field($first, "positive");
-	echo get_role_field($first, "negative");
-	echo get_role_field($first, "both");
+	if($links)
+	{
+		echo get_role_field($first, "positive");
+		echo get_role_field($first, "negative");
+		echo get_role_field($first, "both");
+	}
 
-	echo "<td colspan=\"6\" />";
+	echo "<td colspan=\"6\"/>";
 }
 
-function write_main_data($point, $rels_point){
+function write_main_data($point, $rels_point)
+{
 	echo "<td><a href=\"tmcview.php?cid=" . $point['cid'] . "&amp;tabcd=" . $point['tabcd'] . "&amp;lcd=" . $point['lcd'] . "\">".$point['lcd']."</a></td>";
 
-	$links= get_osm_html_links(get_osm_ids($rels_point));
+	$links = get_osm_html_links(get_osm_ids($rels_point));
 	if($links)
 		echo "<td>".$links."</td>";
 	else
@@ -229,7 +241,11 @@ function write_main_data($point, $rels_point){
 	echo "<td>".$point['present']."</td>";
 }
 
-function write_relation_data($point, $rels_point){
+function write_relation_data($point, $rels_point)
+{
+	if(!count($rels_point))
+		return;
+
 	$first = array_shift($rels_point);
 	echo get_role_field($first, "positive");
 	echo get_role_field($first, "negative");
@@ -243,7 +259,8 @@ function write_relation_data($point, $rels_point){
 	echo get_role_desc($first, "restaurant",  get_role_requirement("restaurant", $point));
 }
 
-function get_osm_html_links($ids){
+function get_osm_html_links($ids)
+{
 	$links = array();
   	foreach($ids as $id)
 		$links[] = "<a href=\"http://www.openstreetmap.org/browse/relation/$id\">$id</a>";
@@ -251,18 +268,24 @@ function get_osm_html_links($ids){
 	return implode (", " , $links);
 }
 
-function get_osm_ids($rels){
+function get_osm_ids($rels)
+{
 	$ids = array_keys($rels);
 	return $ids;
 }
 
-function get_html_type($point){
+function get_html_type($point)
+{
 	
 	return "<span title=\"".find_type($point)."\">".$point['class'].".".$point['tcd'].".".$point['stcd']."</span>";
 }
 
-function get_osm_rels($osmxp,$cid,$tabcd,$lcd){
+function get_osm_rels($osmxp,$cid,$tabcd,$lcd)
+{
 	$osmrels = $osmxp->query("/osm/relation[tag[@k='type'][@v='tmc:point']][tag[@k='table'][@v='$cid:$tabcd']][tag[@k='lcd'][@v='$lcd']]");
+	$keys = array();
+	$rels = array();
+
 	foreach($osmrels as $osmrel)
 	{
 		$rel = array();
@@ -282,8 +305,11 @@ function get_osm_rels($osmxp,$cid,$tabcd,$lcd){
 	return $rels;
 }
 
-function get_link_rels($osmxp,$cid,$tabcd,$neg_lcd,$pos_lcd){
+function get_link_rels($osmxp,$cid,$tabcd,$neg_lcd,$pos_lcd)
+{
 	$osmrels = $osmxp->query("/osm/relation[tag[@k='type'][@v='tmc:link']][tag[@k='table'][@v='$cid:$tabcd']][tag[@k='neg_lcd'][@v='$neg_lcd']][tag[@k='pos_lcd'][@v='$pos_lcd']]");
+	$keys = array();
+	$rels = array();
 
 	foreach($osmrels as $osmrel)
 	{
@@ -304,7 +330,8 @@ function get_link_rels($osmxp,$cid,$tabcd,$neg_lcd,$pos_lcd){
 	return $rels;
 }
 
-function get_role_field($rel, $role) {
+function get_role_field($rel, $role)
+{
 	global $current_status;
 
 	$roles = get_roles($rel, $role);
@@ -327,7 +354,8 @@ function get_role_field($rel, $role) {
 }
 
 // require: false, both, positive, negative
-function get_role_desc($rel, $role, $require=false){
+function get_role_desc($rel, $role, $require=false)
+{
 	global $current_status;
 
 	$rolesP = get_roles($rel, "positive:".$role);
@@ -336,55 +364,67 @@ function get_role_desc($rel, $role, $require=false){
 
 	$both = $rolesB + ($rolesP * $rolesN); 
 
-	$class = "";
-	if($both) {
+	$class = $text = "";
+	if($both)
+	{
 		// present in both directions
 		$class = "correct";
 		$text = "found";
-		if($require === "negative"){
+		if($require === "negative")
+		{
 			$class = "ugly";
 			$text .= ", neg not needed";
 		}
-		if($require === "positive"){
+		if($require === "positive")
+		{
 			$class = "ugly";
 			$text .= ", pos not needed";
 		}
-	} else if($rolesP && !$rolesN){
+	}
+	else if($rolesP && !$rolesN)
+	{
 		// Only positive
 		$class = "correct";
 		$text = "pos only";
-		if($require === "negative"){
+		if($require === "negative")
+		{
 			$class = "ugly";
 			$text .= ", not needed";
 		}
-		if($require === "negative" || $require == "both"){
+		if($require === "negative" || $require == "both")
+		{
 			$class = "missing";
 			$text .= ", neg missing";
 		}
-
-	} else if($rolesN && !$rolesP){
+	}
+	else if($rolesN && !$rolesP)
+	{
 		// Only negative
 		$class = "correct";
 		$text = "neg only";
 
-		if($require === "positive"){
+		if($require === "positive")
+		{
 			$class = "ugly";
 			$text .= ", not needed";
 		}
-		if($require === "positive" || $require === "both"){
+		if($require === "positive" || $require === "both")
+		{
 			$class = "missing";
 			$text .= ", pos missing";
 		}
-
-	} else if($require)
+	}
+	else if($require)
 			$class = $text = "missing";
+	
 	if($class != "correct" && $class != "")
 		$current_status['missing'] = true;
 	
 	return "<td class=\"$class\">$text</td>";
 }
 
-function get_roles($rel, $role){
+function get_roles($rel, $role)
+{
 	$count = 0;
 
 	if(substr($role,0,4) === "both")
@@ -398,23 +438,28 @@ function get_roles($rel, $role){
 }
 
 $role_req = array(
-		'P.1.1' => array('exit','entry'),		// AK
-		'P.1.2' => array('exit','entry'),		// AD
-		'P.1.3' => array('exit','entry'),		// AS
-		'P.1.4' => array('exit'),			// Ausfahrt
-		'P.1.5' => array('entry'),			// Einfahrt
+		'P.1.1' => array('exit','entry'),                // AK
+		'P.1.2' => array('exit','entry'),                // AD
+		'P.1.3' => array('exit','entry'),                // AS
+		'P.1.4' => array('exit'),                        // Ausfahrt
+		'P.1.5' => array('entry'),                       // Einfahrt
 
-		'P.3.3' => array('parking','fuel','restaurant'),	// Raststätte
-		'P.3.4' => array('parking'),				// Rastplatz
-		'P.3.7' => array('parking'),				// park and ride
-		'P.3.8' => array('parking'),				// Parkplatz
-		'P.3.9' => array('parking'),				// Parkplatz + Kiosk
-		'P.3.10' => array('parking'),				// Parkplatz + Kiosk + WC
-		'P.3.21' => array('parking'),				// Parkhaus
-		'P.3.22' => array('parking'),				// Tiefgarage
+		'P.3.1' => array(),                              // Tunnel
+		'P.3.2' => array(),                              // Brücke
+		'P.3.3' => array('parking','fuel','restaurant'), // Raststätte
+		'P.3.4' => array('parking'),                     // Rastplatz
+		'P.3.7' => array('parking'),                     // park and ride
+		'P.3.8' => array('parking'),                     // Parkplatz
+		'P.3.9' => array('parking'),                     // Parkplatz + Kiosk
+		'P.3.10' => array('parking'),                    // Parkplatz + Kiosk + WC
+		'P.3.11' => array('parking','fuel'),             // Tankstelle
+		'P.3.12' => array('parking','fuel'),             // Tankstelle + Kiosk
+		'P.3.21' => array('parking'),                    // Parkhaus
+		'P.3.22' => array('parking'),                    // Tiefgarage
 	);
 
-function get_role_requirement($role, $point){
+function get_role_requirement($role, $point)
+{
 	global $role_req;
 
 	$type = $point['class'].".".$point['tcd'].".".$point['stcd'];
