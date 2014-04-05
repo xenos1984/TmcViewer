@@ -184,14 +184,14 @@ foreach($points as $i => $point)
 <td colspan="6">
 Points:<br/>
 OK: <?php echo (int)$roadlist_status['ok']; ?> <br/>
-Missing: <?php echo (int)$roadlist_status['missing']; ?> <br/>
-Error: <?php echo (int)$roadlist_status['error']; ?>
+Missing elements: <?php echo (int)$roadlist_status['missing']; ?> <br/>
+No Relation: <?php echo (int)$roadlist_status['error']; ?>
 </td>
 <td colspan="6">
 Links:<br/>
 OK: <?php echo (int)$roadlist_status['link_ok']; ?> <br/>
-Missing: <?php echo (int)$roadlist_status['link_missing']; ?> <br/>
-Error: <?php echo (int)$roadlist_status['link_error']; ?>
+Missing elements: <?php echo (int)$roadlist_status['link_missing']; ?> <br/>
+No Relation: <?php echo (int)$roadlist_status['link_error']; ?>
 </td>
 </table>
 </div>
@@ -203,12 +203,14 @@ Error: <?php echo (int)$roadlist_status['link_error']; ?>
 
 function write_link_data($point, $rels_link)
 {
+	global $current_status;
+
 	echo "<td/>";
 
 	$links = get_osm_html_links(get_osm_ids($rels_link));
 	if($links)
 		echo "<td>".$links."</td>";
-	else
+	else 
 		echo "<td class=\"missing\"> </td>";
 
 	echo "<td/>";
@@ -221,20 +223,27 @@ function write_link_data($point, $rels_link)
 		echo get_role_field($first, "positive");
 		echo get_role_field($first, "negative");
 		echo get_role_field($first, "both");
+		echo "<td colspan=\"6\"/>";
+	} else {
+		echo "<td colspan=\"9\"/>";
+		$current_status['error'] = true;
 	}
 
-	echo "<td colspan=\"6\"/>";
 }
 
 function write_main_data($point, $rels_point)
 {
+	global $current_status;
+
 	echo "<td><a href=\"tmcview.php?cid=" . $point['cid'] . "&amp;tabcd=" . $point['tabcd'] . "&amp;lcd=" . $point['lcd'] . "\">".$point['lcd']."</a></td>";
 
 	$links = get_osm_html_links(get_osm_ids($rels_point));
 	if($links)
 		echo "<td>".$links."</td>";
-	else
+	else {
 		echo "<td class=\"missing\"> </td>";
+		$current_status['error'] = true;
+	}
 
 	echo "<td>".get_html_type($point)."</td>";
 	echo "<td>".array_desc($point)."</td>";
