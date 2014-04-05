@@ -2,11 +2,15 @@
 include_once('tmcpdo.php');
 include_once('tmchtml.php');
 
-// Angabe von cid, tabcd, lcd für ein L1.*
-// TODO: bei fehlender Angabe_ Liste der Straßen
-
 $roadlist_status = array('error' => 0, 'missing' => 0, 'ok' => 0, 'link_error' => 0, 'link_missing' => 0, 'link_ok' => 0);
 $current_status = array('error' => 0, 'missing' => 0);
+
+// read/write the status of displaying roles
+$show_all_roles = (isset($_COOKIE['tmc_show_all_roles']) && $_COOKIE['tmc_show_all_roles']);
+if(isset($_GET['showall'])) {
+	$show_all_roles = (boolean)$_GET['showall'];
+	setcookie('tmc_show_all_roles', $_GET['showall'], time()+60*60*24*30);
+}
 
 function tmc_roadlist()
 {
@@ -171,6 +175,11 @@ foreach($points as $i => $point)
 }
 ?>
 </thead>
+<tfoot>
+<tr>
+<td colspan="14"><?php write_relation_status($data); ?></td>
+</tr>
+</tfoot>
 </table>
 
 <div style="position:fixed;bottom:0px;width:100%;clear:both;background-color:white;">
@@ -204,31 +213,31 @@ No Relation: <?php echo (int)$roadlist_status['link_error']; ?>
 function write_link_data($point, $rels_link)
 {
 	global $current_status;
+	global $show_all_roles;
 
 	echo "<td/>";
 
 	$links = get_osm_html_links(get_osm_ids($rels_link));
 	if($links)
 		echo "<td>".$links."</td>";
-	else 
+	else {
+		$current_status['error'] = true;
 		echo "<td class=\"missing\"> </td>";
+	}
 
 	echo "<td/>";
 	echo "<td>Link</td>";
 	echo "<td/>";
 	$first = array_shift($rels_link);
 
-	if($links)
+	if($links || $show_all_roles)
 	{
 		echo get_role_field($first, "positive");
 		echo get_role_field($first, "negative");
 		echo get_role_field($first, "both");
 		echo "<td colspan=\"6\"/>";
-	} else {
+	} else
 		echo "<td colspan=\"9\"/>";
-		$current_status['error'] = true;
-	}
-
 }
 
 function write_main_data($point, $rels_point)
@@ -252,7 +261,9 @@ function write_main_data($point, $rels_point)
 
 function write_relation_data($point, $rels_point)
 {
-	if(!count($rels_point))
+	global $show_all_roles;
+
+	if(!count($rels_point) && !$show_all_roles)
 		return;
 
 	$first = array_shift($rels_point);
@@ -266,6 +277,26 @@ function write_relation_data($point, $rels_point)
 	echo get_role_desc($first, "parking",  get_role_requirement("parking", $point));
 	echo get_role_desc($first, "fuel",  get_role_requirement("fuel", $point));
 	echo get_role_desc($first, "restaurant",  get_role_requirement("restaurant", $point));
+}
+
+/**
+ * This function writes the link to change the display-option for the roles.
+ * You can activate or deactivate the status for the roles of links or points 
+ * without an existing relation. If it is activate it can help to find out 
+ * which roles you have to map in the new realtion. 
+ */
+function write_relation_status($point)
+{
+	global $show_all_roles;
+
+	if($show_all_roles)
+		// activated
+		$text = "deactivate all roles.";
+	else
+		// deactivated
+		$text = "activate all roles.";
+
+	echo "<a href=\"tmcroads.php?cid=" . $point['cid'] . "&amp;tabcd=" . $point['tabcd'] . "&amp;lcd=" . $point['lcd'] . "&amp;showall=".(int)!$show_all_roles."\">$text</a>";
 }
 
 function get_osm_html_links($ids)
@@ -438,10 +469,10 @@ function get_roles($rel, $role)
 
 	if(substr($role,0,4) === "both")
 		$count += get_roles($rel, substr($role,4));
-
-	foreach($rel['member'] as $member)
-		if(trim($member['role']) == trim($role))
-			$count++;
+	if(isset($rel['member']))
+		foreach($rel['member'] as $member)
+			if(trim($member['role']) == trim($role))
+				$count++;
 
 	return $count;
 }
@@ -473,7 +504,7 @@ function get_role_requirement($role, $point)
 
 	$type = $point['class'].".".$point['tcd'].".".$point['stcd'];
 
-	$req = in_array($role, $role_req[$type]);	
+	$req = isset($role_req[$type]) && in_array($role, $role_req[$type]);	
 
 	if($req && $point['present'])
 		// Only for one direction
