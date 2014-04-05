@@ -351,7 +351,7 @@ function get_role_field($rel, $role)
 		$sum = get_roles($rel, "positive") + get_roles($rel, "negative") + get_roles($rel, "both");
 		if($sum == 0){
 			if($role === "positive") {
-				$current_status['error'] = true;
+				$current_status['missing'] = true;
 				return "<td class=\"missing\" colspan=\"3\">missing</td>";
 			}
 		} else if($role != "both" && !get_roles($rel, "both")){
