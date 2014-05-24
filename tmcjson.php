@@ -97,7 +97,7 @@ function json_osm($xml)
 		foreach($reltags as $reltag)
 			$relprops[$reltag->getAttribute('k')] = $reltag->getAttribute('v');
 
-		echo "<!--\n"; print_r($relprops); echo "-->\n";
+//		echo "<!--\n"; print_r($relprops); echo "-->\n";
 
 		$members = $xpath->query("member", $osmrel);
 		foreach($members as $member)
