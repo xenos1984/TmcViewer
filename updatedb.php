@@ -30,7 +30,7 @@ foreach($countries as $country)
 		echo $pdo->exec($query) . ": $query\n";
 
 		foreach($tables as $table)
-			$pdo->exec("DELETE FROM $table WHERE cid = {$data['cid']}");
+			$pdo->exec("DELETE FROM $table WHERE cid = {$data['CID']}");
 	}
 
 	fclose($csv);
