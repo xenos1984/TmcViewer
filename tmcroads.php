@@ -431,7 +431,7 @@ function get_role_desc($rel, $role, $require=false)
 			$class = "ugly";
 			$text .= ", not needed";
 		}
-		if($require === "negative" || $require == "both")
+		if($require === "negative" || $require === "both" || $require === true)
 		{
 			$class = "missing";
 			$text .= ", neg missing";
@@ -448,7 +448,7 @@ function get_role_desc($rel, $role, $require=false)
 			$class = "ugly";
 			$text .= ", not needed";
 		}
-		if($require === "positive" || $require === "both")
+		if($require === "positive" || $require === "both" || $require === true)
 		{
 			$class = "missing";
 			$text .= ", pos missing";
