@@ -509,6 +509,31 @@ function get_role_requirement($role, $point)
 	if($req && $point['present'])
 		// Only for one direction
 		$req = $point['present'];
+	
+	if($req)
+		// Check exit + entry direction if required
+		if($role === 'exit') 
+		{
+			if($point['outpos'] && $point['outneg'])
+				$req = true;
+			else if($point['outpos'])
+				$req = 'positive';
+			else if($point['outneg'])
+				$req = 'negative';
+			else
+				$req = false;
+		}
+		else if($role === 'entry')
+		{
+			if($point['inpos'] && $point['inneg'])
+				$req = true;
+			else if($point['inpos'])
+				$req = 'positive';
+			else if($point['inneg'])
+				$req = 'negative';
+			else
+				$req = false;
+		}
 
 	return $req;
 }
