@@ -289,6 +289,10 @@ tmcdata = <?php echo json_string($jsondata); ?>;
 			echo "<li><a href=\"$opurl\">Download as OSM XML</a></li>\n";
 			echo "<li><a href=\"http://localhost:8111/load_object?objects=r" . implode(',r', $ids) . "\" target=\"josm\">Load into editor</a></li>\n";
 			echo "</ul>\n";
+			// List all types + directions + roles here
+			echo '<div id="types"></div>';
+			echo '<div id="directions"></div>';
+			echo '<div id="roles"></div>';
 		}
 
 		echo "<table class=\"tmcosm\">\n";
@@ -374,6 +378,11 @@ tmcdata = <?php echo json_string($jsondata); ?>;
 			$dir = !$dir;
 		}
 		while($dir);
+	} else {
+					// List all types + directions + roles here
+			echo '<div id="types"></div>';
+			echo '<div id="directions"></div>';
+			echo '<div id="roles"></div>';
 	}
 
 	echo "<h3>Raw TMC data</h3>\n";
