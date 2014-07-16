@@ -23,16 +23,16 @@ function init()
 		displayProjection: new OpenLayers.Projection("EPSG:4326"),
 		zoomMethod: null
 	} );
-
-	map.addLayer(new OpenLayers.Layer.OSM.Mapnik("Mapnik"));
 /*
+	map.addLayer(new OpenLayers.Layer.OSM.Mapnik("Mapnik"));
+*/
 	map.addLayers([
 		new OpenLayers.Layer.OSM.Mapnik("Mapnik"),
 		new OpenLayers.Layer.OSM.CycleMap("CycleMap"),
 		new OpenLayers.Layer.OSM.TransportMap("TransportMap"),
 		new OpenLayers.Layer.XYZ("OSM German", ["http://a.tile.openstreetmap.de/tiles/osmde/${z}/${x}/${y}.png", "http://b.tile.openstreetmap.de/tiles/osmde/${z}/${x}/${y}.png", "http://c.tile.openstreetmap.de/tiles/osmde/${z}/${x}/${y}.png", "http://d.tile.openstreetmap.de/tiles/osmde/${z}/${x}/${y}.png"], {numZoomLevels: 19, attribution: '<a href="./germanstyle.html">About style</a>'})
 	]);
-*/
+
 	var dataExtent;
 	var setExtent = function()
 	{
