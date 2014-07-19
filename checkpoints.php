@@ -168,7 +168,7 @@ foreach($countries as $country)
 
 				foreach($keys as $key)
 				{
-					if(preg_match('/^(note|description|intersects|([a-z_]+_)?name)(:[a-z_]+)?$/', $key))
+					if(preg_match('/^(note(:[a-z_]+)?|description(:[a-z_]+)?|intersects|([a-z_]+_)?name)(:[a-z_]+)?$/', $key))
 						continue;
 
 					$tval = (array_key_exists($key, $tags) ? $tags[$key] : "");
@@ -179,7 +179,7 @@ foreach($countries as $country)
 
 				foreach($rel['roles'] as $role)
 				{
-					if(!preg_match('/^((positive|negative|both)(:[a-z]+)?)?$/', $role))
+					if(!preg_match('/^((positive|negative|both)(:(entry|exit|ramp|parking|restaurant|fuel|motel|attraction))?)?$/', $role))
 						$errors[] = "role:$role";
 				}
 
