@@ -3,16 +3,16 @@
 $pdo = new PDO('mysql:host=HOSTNAME;port=3306;dbname=DBNAME;charset=utf8', 'USERNAME', 'PASSWORD', array(PDO::ATTR_PERSISTENT => true));
 
 // Enter list of countries to be imported. For every country there must be a directory with that name containing the TMC location code tables in TISA format.
-$countries = array('de'=>"Germany", 'it'=>"Italy", 'se'=>"Sweden", 'no'=>"Norway", 'fi'=>"Finland", 'fr'=>"France", 'be'=>"Belgium", 'es'=>"Spain");
+$countries = array('de'=>"Germany", 'it'=>"Italy", 'se'=>"Sweden", 'no'=>"Norway", 'fi'=>"Finland", 'fr'=>"France", 'be'=>"Belgium", 'es'=>"Spain", 'sk'=>"Slovakia");
 
-$pdo->exec("CREATE TABLE countries (cid INTEGER, tabcd INTEGER, name VARCHAR(100), dcomment VARCHAR(100), version VARCHAR(8), versiondescription VARCHAR(100), PRIMARY KEY (cid, tabcd)) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;");
+$pdo->exec("CREATE TABLE IF NOT EXISTS countries (cid INTEGER, tabcd INTEGER, name VARCHAR(100), dcomment VARCHAR(100), version VARCHAR(8), versiondescription VARCHAR(100), PRIMARY KEY (cid, tabcd)) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;");
 
 foreach($countries as $country)
 {
 	$charset = get_charset($country);
 
 	$csv = fopen("$country/LOCATIONDATASETS.DAT", "r");
-	$header = explode(";", utf8_encode(trim(fgets($csv))));
+	$header = explode(";", utf8_encode(trim(remove_utf8_bom(fgets($csv)))));
 	$cols = strtolower("(" . implode(", ", array_merge($header, array('NAME'))) . ")");
 
 	for(;;)
@@ -37,14 +37,14 @@ function create_table($file, $layout)
 	global $countries;
 
 	$table = strtolower($file);
-	$pdo->exec("CREATE TABLE $table ($layout) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;");
+	$pdo->exec("CREATE TABLE IF NOT EXISTS $table ($layout) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;");
 
 	foreach($countries as $country)
 	{
 		$charset = get_charset($country);
 
 		$csv = fopen("$country/$file.DAT", "r");
-		$header = explode(";", utf8_encode(trim(fgets($csv))));
+		$header = explode(";", utf8_encode(trim(remove_utf8_bom(fgets($csv)))));
 		$cols = strtolower("(" . implode(", ", $header) . ")");
 
 		for(;;)
@@ -75,14 +75,14 @@ function create_types($table, $file, $layout)
 
 	$table = strtolower($table);
 
-	$pdo->exec("CREATE TABLE $table ($layout) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;");
+	$pdo->exec("CREATE TABLE IF NOT EXISTS $table ($layout) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;");
 
 	foreach($countries as $cid=>$country)
 	{
 		$charset = get_charset($country);
 
 		$csv = fopen("$country/$file.DAT", "r");
-		$header = explode(";", utf8_encode(trim(fgets($csv))));
+		$header = explode(";", utf8_encode(trim(remove_utf8_bom(fgets($csv)))));
 		$cols = strtolower("(" . implode(", ", $header) . ")");
 
 		// Add National COL
@@ -121,12 +121,19 @@ function create_types($table, $file, $layout)
 
 function get_charset($country)
 {
-	$readme = explode(";", trim(file_get_contents("$country/README.DAT")));
+	$readme = explode(";", trim(remove_utf8_bom(file_get_contents("$country/README.DAT"))));
 	$arr = explode(' ', $readme[4]);
 	if($arr[0] == 'ISO')
 		// Variant for German ISO 8859 without minus
 		$arr = explode(' (', $readme[4]);
 	return $arr[0];
+}
+
+function remove_utf8_bom($text)
+{
+	$bom = pack('H*','EFBBBF');
+	$text = preg_replace("/^$bom/", '', $text);
+	return $text;
 }
 
 create_types('TYPES', 'SUBTYPES', 'class CHAR(1), tcd TINYINT(4), stcd TINYINT(4), `desc` VARCHAR(255), PRIMARY KEY (class, tcd, stcd)');
