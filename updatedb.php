@@ -3,13 +3,14 @@
 $pdo = new PDO('mysql:host=HOSTNAME;port=3306;dbname=DBNAME;charset=utf8', 'USERNAME', 'PASSWORD', array(PDO::ATTR_PERSISTENT => true));
 
 // Enter list of countries to be imported. For every country there must be a directory with that name containing the TMC location code tables in TISA format.
-$countries = array('de'=>"Germany", 'it'=>"Italy", 'se'=>"Sweden", 'no'=>"Norway", 'fi'=>"Finland", 'fr'=>"France", 'be'=>"Belgium", 'es'=>"Spain");
+$countries = array('de'=>"Germany", 'it'=>"Italy", 'se'=>"Sweden", 'no'=>"Norway", 'fi'=>"Finland", 'fr'=>"France", 'be'=>"Belgium", 'es'=>"Spain", 'sk'=>'Slovakia');
 
 $tables = array('locationcodes', 'names', 'administrativearea', 'otherareas', 'roads', 'segments', 'soffsets', 'points', 'poffsets', 'intersections');
 
 foreach($countries as $country)
 {
-	$pdo->exec("DELETE FROM countries WHERE name = $country");
+	$query = "DELETE FROM countries WHERE name = '$country'";
+	echo $pdo->exec($query) . ": $query\n";
 
 	$charset = get_charset($country);
 
@@ -30,7 +31,10 @@ foreach($countries as $country)
 		echo $pdo->exec($query) . ": $query\n";
 
 		foreach($tables as $table)
-			$pdo->exec("DELETE FROM $table WHERE cid = {$data['CID']}");
+		{
+			$query = "DELETE FROM $table WHERE cid = {$data['CID']}";
+			echo $pdo->exec($query) . ": $query\n";
+		}
 	}
 
 	fclose($csv);
