@@ -3,7 +3,7 @@
 $pdo = new PDO('mysql:host=HOSTNAME;port=3306;dbname=DBNAME;charset=utf8', 'USERNAME', 'PASSWORD', array(PDO::ATTR_PERSISTENT => true));
 
 // Enter list of countries to be imported. For every country there must be a directory with that name containing the TMC location code tables in TISA format.
-$countries = array('de'=>"Germany", 'it'=>"Italy", 'se'=>"Sweden", 'no'=>"Norway", 'fi'=>"Finland", 'fr'=>"France", 'be'=>"Belgium", 'es'=>"Spain", 'sk'=>'Slovakia');
+$countries = array(/*'de'=>"Germany", 'it'=>"Italy", 'se'=>"Sweden", 'no'=>"Norway",*/ 'fi'=>"Finland", /*'fr'=>"France",*/ 'be'=>"Belgium"/*, 'es'=>"Spain", 'sk'=>'Slovakia'*/);
 
 $tables = array('locationcodes', 'names', 'administrativearea', 'otherareas', 'roads', 'segments', 'soffsets', 'points', 'poffsets', 'intersections');
 
@@ -62,14 +62,22 @@ function update_table($table)
 				break;
 
 			$data = array_combine($header, explode(";", iconv($charset, 'UTF-8', trim($text)), count($header)));
-			if(strpos($cols, 'xcoord') !== false)
+			$data = array_filter($data, function ($x) { return ($x != ''); });
+			if(array_key_exists('XCOORD', $data))
 			{
 				$data['XCOORD'] = ((float)$data['XCOORD'])/1e5;
 				$data['YCOORD'] = ((float)$data['YCOORD'])/1e5;
 			}
-			$vals = "('" . implode("', '", $data) . "')";
+			$vals = "(" . implode(", ", array_map(array($pdo, 'quote'), $data)) . ")";
+			$cols = strtolower("(" . implode(", ", array_keys($data)) . ")");
 			$query = "INSERT INTO $table $cols VALUES $vals;";
-			echo $pdo->exec($query) . ": $query\n";
+			$result = $pdo->exec($query);
+			echo "$result: $query\n";
+			if(!$result)
+			{
+				print_r($pdo->errorInfo());
+				die($pdo->errorCode());
+			}
 		}
 
 		fclose($csv);
