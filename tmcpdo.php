@@ -1,6 +1,7 @@
 <?php
-// Enter database connection details here!
-$pdo = new PDO('mysql:host=HOSTNAME;port=3306;dbname=DBMANE;charset=utf8', 'USERNAME', 'PASSWORD', array(PDO::ATTR_PERSISTENT => true));
+include_once('config.php');
+
+$pdo = new PDO($config_pdo_connection, $config_pdo_readonly_user, $config_pdo_readonly_password, $config_pdo_attributes);
 
 function find_names($data)
 {
@@ -90,7 +91,7 @@ function find_inter($data)
 
 	if(($data['class'] == 'P') && ($result = $pdo->query("SELECT * FROM points WHERE xcoord = '" . $data['xcoord'] . "' AND ycoord = '" . $data['ycoord'] . "' ORDER BY cid, tabcd, lcd")) && ($inters = $result->fetchAll(PDO::FETCH_ASSOC)))
 		return array_map("find_names", $inters);
-	
+
 	return array();
 }
 
