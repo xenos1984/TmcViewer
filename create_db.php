@@ -1,5 +1,6 @@
 <?php
 include_once('config.php');
+include_once('tmcfile.php');
 
 $dblayout = array(
 	'types' => array(
@@ -166,6 +167,31 @@ foreach($dblayout as $table => $layout)
 	echo "$result <= $query\n";
 	if($result === false)
 		print_r($pdo->errorInfo());
+}
+
+$csv = fopen("$country/$file.DAT", "r");
+$header = explode(";", trim(remove_utf8_bom(fgets($csv))));
+$cols = strtolower("(" . implode(", ", $header) . ")");
+
+$stmt = $pdo->prepare("INSERT INTO TYPES (class, tcd, stcd, tdesc) VALUES (:class, :tcd, :stcd, :tdesc);");
+
+for(;;)
+{
+	$text = trim(fgets($csv));
+	if(!$text)
+		break;
+
+	$data = array_combine($header, explode(";", $text, count($header)));
+
+	$stmt->bindValue('class', $data['CLASS'], PDO::PARAM_STR);
+	$stmt->bindValue('tcd', $data['TCD'], PDO::PARAM_INT);
+	$stmt->bindValue('stcd', $data['STCD'], PDO::PARAM_INT);
+	$stmt->bindValue('tdesc', $data['TDESC'], PDO::PARAM_STR);
+
+	$result = $stmt->execute();
+	echo "$result <= {$stmt->queryString}\n";
+	if($result === false)
+		print_r($stmt->errorInfo());
 }
 ?>
 
