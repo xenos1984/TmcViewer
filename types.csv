@@ -1,0 +1,130 @@
+CLASS;TCD;STCD;TDESC
+A;1;0;continent
+A;2;0;country group
+A;3;0;country
+A;5;0;water area
+A;5;1;sea
+A;5;2;lake
+A;6;0;fuzzy area
+A;6;1;tourist area
+A;6;2;metropolitan area
+A;6;3;industrial area
+A;6;4;traffic area
+A;6;5;meteorological area
+A;6;6;carpool area
+A;6;7;park and ride area
+A;6;8;car park area
+A;7;0;order 1 area
+A;8;0;order 2 area
+A;9;0;order 3 area
+A;9;1;rural county
+A;9;2;urban county
+A;10;0;order 4 area
+A;11;0;order 5 area
+A;12;0;application region
+L;1;0;road
+L;1;1;motorway
+L;1;2;1st class road
+L;1;3;2nd class road
+L;1;4;3rd class road
+L;2;0;ring road
+L;2;1;ring motorway
+L;2;2;other ring road
+L;3;0;order 1 segment
+L;4;0;order 2 segment
+L;5;0;urban street
+L;6;0;vehicular link
+L;6;1;ferry
+L;6;2;vehicular rail link
+L;7;0;link road
+P;1;0;junction
+P;1;1;motorway intersection
+P;1;2;motorway triangle
+P;1;3;motorway junction
+P;1;4;motorway exit
+P;1;5;motorway entrance
+P;1;6;flyover
+P;1;7;underpass
+P;1;8;roundabout
+P;1;9;gyratory
+P;1;10;traffic lights
+P;1;11;cross-roads
+P;1;12;T-junction
+P;1;13;intermediate node
+P;1;14;connection
+P;1;15;exit
+P;2;0;intermediate point
+P;2;1;distance marker
+P;2;2;traffic monitoring station
+P;3;0;other landmark point
+P;3;1;tunnel
+P;3;2;bridge
+P;3;3;service area
+P;3;4;rest area
+P;3;5;view point
+P;3;6;carpool point
+P;3;7;park and ride site
+P;3;8;car park
+P;3;9;kiosk
+P;3;10;kiosk with WC
+P;3;11;petrol station
+P;3;12;petrol station with kiosk
+P;3;13;motel
+P;3;14;border/frontier
+P;3;15;customs post
+P;3;16;toll plaza
+P;3;17;ferry terminal
+P;3;18;harbour
+P;3;19;square
+P;3;20;fair
+P;3;21;garage
+P;3;22;underground garage
+P;3;23;retail park
+P;3;24;theme park
+P;3;25;tourist attraction
+P;3;26;university
+P;3;27;airport
+P;3;28;station
+P;3;29;hospital
+P;3;30;church
+P;3;31;stadium
+P;3;32;palace
+P;3;33;castle
+P;3;34;town hall
+P;3;35;exhibition/convention centre
+P;3;36;community
+P;3;37;place name
+P;3;38;dam
+P;3;39;dike
+P;3;40;aqueduct
+P;3;41;lock
+P;3;42;mountain crossing/pass
+P;3;43;railroad crossing
+P;3;44;wade
+P;3;45;ferry
+P;3;46;industrial area
+P;3;47;viaduct
+P;4;0;link road point
+P;5;0;parking POI
+P;5;1;underground parking garage
+P;5;2;car park
+P;5;3;parking garage
+P;5;4;carpool point
+P;5;5;park and ride site
+P;5;6;rest area parking
+P;5;7;campground
+P;6;0;other isolated POI
+P;6;1;airport
+P;6;2;station
+P;6;3;harbour
+P;6;4;tunnel
+P;6;5;bridge
+P;6;6;ferry
+P;6;7;square
+P;6;8;fair
+P;6;9;retail park
+P;6;10;theme park
+P;6;11;tourist attraction
+P;6;12;stadium
+P;6;13;exhibition/convention centre
+P;6;14;place name
