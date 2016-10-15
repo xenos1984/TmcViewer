@@ -23,6 +23,6 @@ $config_countries = array(
 );
 
 // Directory in which tables can be found.
-$config_lt_dir = './';
+$config_lt_dir = '.';
 ?>
 

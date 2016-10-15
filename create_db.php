@@ -14,7 +14,7 @@ $dblayout = array(
 		'cid INTEGER PRIMARY KEY',
 		'ecc CHAR(2)',
 		'ccd CHAR(1)',
-		'name VARCHAR(100)'
+		'cname VARCHAR(100)'
 	),
 	'locationdatasets' => array(
 		'cid INTEGER',
