@@ -162,18 +162,18 @@ $pdo = new PDO($config_pdo_connection, $config_pdo_write_user, $config_pdo_write
 
 foreach($dblayout as $table => $layout)
 {
-	$query = "CREATE TABLE $table ($layout) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
+	$query = "CREATE TABLE $table (" . implode(", ", $layout) . ") DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
 	$result = $pdo->exec($query);
 	echo "$result <= $query\n";
 	if($result === false)
 		print_r($pdo->errorInfo());
 }
 
-$csv = fopen("$country/$file.DAT", "r");
+$csv = fopen("types.csv", "r");
 $header = explode(";", trim(remove_utf8_bom(fgets($csv))));
 $cols = strtolower("(" . implode(", ", $header) . ")");
 
-$stmt = $pdo->prepare("INSERT INTO TYPES (class, tcd, stcd, tdesc) VALUES (:class, :tcd, :stcd, :tdesc);");
+$stmt = $pdo->prepare("INSERT INTO types (class, tcd, stcd, tdesc) VALUES (:class, :tcd, :stcd, :tdesc);");
 
 for(;;)
 {
@@ -188,10 +188,11 @@ for(;;)
 	$stmt->bindValue('stcd', $data['STCD'], PDO::PARAM_INT);
 	$stmt->bindValue('tdesc', $data['TDESC'], PDO::PARAM_STR);
 
-	$result = $stmt->execute();
-	echo "$result <= {$stmt->queryString}\n";
-	if($result === false)
+	if($stmt->execute() === false)
+	{
+		print_r($data);
 		print_r($stmt->errorInfo());
+	}
 }
 ?>
 
