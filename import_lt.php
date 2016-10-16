@@ -48,7 +48,12 @@ foreach($config_countries as $cc => $country)
 			$total++;
 
 			foreach($data as $key => $value)
+			{
+				if(($key == 'XCOORD') || ($key == 'YCOORD'))
+					$value = ((float)$value) / 1.0e5;
+
 				$stmt->bindValue(strtolower($key), $value);
+			}
 
 			if($stmt->execute() === false)
 			{
