@@ -34,8 +34,8 @@ function tmc_types()
 		echo "<tr><th>Type</th><th>Description</th><th>Entries</th></tr>\n";
 
 		$stmt = $pdo->prepare("SELECT types.*, COUNT(*) FROM types, $table WHERE types.class = $table.class AND types.tcd = $table.tcd AND types.stcd = $table.stcd AND $table.cid = :cid AND $table.tabcd = :tabcd GROUP BY types.class, types.tcd, types.stcd;");
-		$stmt->bindValue('cid', $cid, PDO::PARAM_INT);
-		$stmt->bindValue('tabcd', $tabcd, PDO::PARAM_INT);
+		$stmt->bindValue(':cid', $cid, PDO::PARAM_INT);
+		$stmt->bindValue(':tabcd', $tabcd, PDO::PARAM_INT);
 		$stmt->execute();
 
 		while($data = $stmt->fetch(PDO::FETCH_ASSOC))

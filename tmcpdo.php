@@ -7,6 +7,10 @@ function find_names($data)
 {
 	global $pdo;
 	static $names = array('nid', 'rnid', 'n1id', 'n2id');
+	static $stmt = null;
+
+	if($stmt === null)
+		$stmt = $pdo->prepare("SELECT name FROM names WHERE cid = :cid AND nid = :nid");
 
 	foreach($names as $name)
 	{
@@ -14,8 +18,11 @@ function find_names($data)
 		{
 			if($data[$name])
 			{
-				$result = $pdo->query("SELECT name FROM names WHERE cid = '" . $data['cid'] . "' AND nid = '" . $data[$name] . "'");
-				if($result && ($value = $result->fetch(PDO::FETCH_COLUMN)))
+				$stmt->bindValue(':cid', $data['cid'], PDO::PARAM_INT);
+				$stmt->bindValue(':nid', $data[$name], PDO::PARAM_INT);
+				$stmt->execute();
+
+				if($value = $stmt->fetch(PDO::FETCH_COLUMN))
 					$data[$name] = $value;
 				else
 					$data[$name] = "";
@@ -31,8 +38,17 @@ function find_names($data)
 function find_type($data)
 {
 	global $pdo;
+	static $stmt = null;
 
-	if(($result = $pdo->query("SELECT `desc` FROM types WHERE class = '" . $data['class'] . "' AND tcd = '" . $data['tcd'] . "' AND stcd = '" . $data['stcd'] . "'")) && ($name = $result->fetch(PDO::FETCH_COLUMN)))
+	if($stmt === null)
+		$stmt = $pdo->prepare("SELECT tdesc FROM types WHERE class = :class AND tcd = :tcd AND stcd = :stcd");
+
+	$stmt->bindValue(':class', $data['class'], PDO::PARAM_STR);
+	$stmt->bindValue(':tcd', $data['tcd'], PDO::PARAM_INT);
+	$stmt->bindValue(':stcd', $data['stcd'], PDO::PARAM_INT);
+	$stmt->execute();
+
+	if($name = $stmt->fetch(PDO::FETCH_COLUMN))
 		return $name;
 	else
 		return "";
@@ -41,13 +57,22 @@ function find_type($data)
 function find_location($table, $cid, $tabcd, $lcd)
 {
 	global $pdo;
+	static $stmts = array('locationcodes' => null, 'points' => null, 'poffsets' => null, 'segments' => null, 'soffsets' => null, 'roads' => null, 'administrativearea' => null, 'otherareas' => null);
 
-	$result = $pdo->query("SELECT * FROM $table WHERE cid = '$cid' AND tabcd = '$tabcd' AND lcd = '$lcd'");
-	if(!$result)
+	if(!array_key_exists($table, $stmts))
 		return false;
-	$data = $result->fetch(PDO::FETCH_ASSOC);
-	if(!$data)
+
+	if($stmts[$table] === null)
+		$stmts[$table] = $pdo->prepare("SELECT * FROM $table WHERE cid = :cid AND tabcd = :tabcd AND lcd = :lcd");
+
+	$stmts[$table]->bindValue(':cid', $cid, PDO::PARAM_INT);
+	$stmts[$table]->bindValue(':tabcd', $tabcd, PDO::PARAM_INT);
+	$stmts[$table]->bindValue(':lcd', $lcd, PDO::PARAM_INT);
+	$stmts[$table]->execute();
+
+	if(!($data = $stmts[$table]->fetch(PDO::FETCH_ASSOC)))
 		return false;
+
 	return find_names($data);
 }
 
@@ -88,9 +113,20 @@ function find_links($data)
 function find_inter($data)
 {
 	global $pdo;
+	static $stmt = null;
 
-	if(($data['class'] == 'P') && ($result = $pdo->query("SELECT * FROM points WHERE xcoord = '" . $data['xcoord'] . "' AND ycoord = '" . $data['ycoord'] . "' ORDER BY cid, tabcd, lcd")) && ($inters = $result->fetchAll(PDO::FETCH_ASSOC)))
-		return array_map("find_names", $inters);
+	if($stmt === null)
+		$stmt = $pdo->prepare("SELECT * FROM points WHERE xcoord = :xcoord AND ycoord = :ycoord ORDER BY cid, tabcd, lcd");
+
+	if($data['class'] == 'P')
+	{
+		$stmt->bindValue(':xcoord', $data['xcoord']);
+		$stmt->bindValue(':ycoord', $data['ycoord']);
+		$stmt->execute();
+
+		if($inters = $stmt->fetchAll(PDO::FETCH_ASSOC))
+			return array_map("find_names", $inters);
+	}
 
 	return array();
 }
@@ -98,18 +134,45 @@ function find_inter($data)
 function find_segment_points($data)
 {
 	global $pdo;
+	static $first = null;
+	static $next = null;
+
+	if($first === null)
+		$first = $pdo->prepare("SELECT points.*, poffsets.neg_off_lcd, poffsets.pos_off_lcd FROM points, poffsets WHERE points.cid = :cid_a AND poffsets.cid = :cid_b AND points.tabcd = :tabcd_a AND poffsets.tabcd = :tabcd_b AND points.lcd = poffsets.lcd AND points.seg_lcd = :lcd_a AND NOT EXISTS (SELECT * FROM points WHERE cid = :cid_c AND tabcd = :tabcd_c AND seg_lcd = :lcd_b AND lcd = poffsets.neg_off_lcd)");
+
+	if($next === null)
+		$next = $pdo->prepare("SELECT points.*, poffsets.neg_off_lcd, poffsets.pos_off_lcd FROM points, poffsets WHERE points.cid = :cid_a AND poffsets.cid = :cid_b AND points.tabcd = :tabcd_a AND poffsets.tabcd = :tabcd_b AND points.lcd = :lcd_a AND poffsets.lcd = :lcd_b AND points.seg_lcd = :lcd_c");
+
+	$first->bindValue(':cid_a', $data['cid'], PDO::PARAM_INT);
+	$first->bindValue(':cid_b', $data['cid'], PDO::PARAM_INT);
+	$first->bindValue(':cid_c', $data['cid'], PDO::PARAM_INT);
+	$first->bindValue(':tabcd_a', $data['tabcd'], PDO::PARAM_INT);
+	$first->bindValue(':tabcd_b', $data['tabcd'], PDO::PARAM_INT);
+	$first->bindValue(':tabcd_c', $data['tabcd'], PDO::PARAM_INT);
+	$first->bindValue(':lcd_a', $data['lcd'], PDO::PARAM_INT);
+	$first->bindValue(':lcd_b', $data['lcd'], PDO::PARAM_INT);
+
+	$next->bindValue(':cid_a', $data['cid'], PDO::PARAM_INT);
+	$next->bindValue(':cid_b', $data['cid'], PDO::PARAM_INT);
+	$next->bindValue(':tabcd_a', $data['tabcd'], PDO::PARAM_INT);
+	$next->bindValue(':tabcd_b', $data['tabcd'], PDO::PARAM_INT);
+	$next->bindValue(':lcd_c', $data['lcd'], PDO::PARAM_INT);
 
 	$points = array();
-	if(($result = $pdo->query("SELECT points.*, poffsets.neg_off_lcd, poffsets.pos_off_lcd FROM points, poffsets WHERE points.cid = '" . $data['cid'] . "' AND poffsets.cid = '" . $data['cid'] . "' AND points.tabcd = '" . $data['tabcd'] . "' AND poffsets.tabcd = '" . $data['tabcd'] . "' AND points.lcd = poffsets.lcd AND points.seg_lcd = '" . $data['lcd'] . "' AND NOT EXISTS (SELECT * FROM points WHERE cid = '" . $data['cid'] . "' AND tabcd = '" . $data['tabcd'] . "' AND seg_lcd = '" . $data['lcd'] . "' AND lcd = poffsets.neg_off_lcd)")) && ($point = $result->fetch(PDO::FETCH_ASSOC)))
+	$first->execute();
+
+	if($point = $first->fetch(PDO::FETCH_ASSOC))
 	{
 		for(;;)
 		{
 			$point = find_names($point);
 			$points[] = $point;
 
-			if(!($result = $pdo->query("SELECT points.*, poffsets.neg_off_lcd, poffsets.pos_off_lcd FROM points, poffsets WHERE points.cid = '" . $data['cid'] . "' AND poffsets.cid = '" . $data['cid'] . "' AND points.tabcd = '" . $data['tabcd'] . "' AND poffsets.tabcd = '" . $data['tabcd'] . "' AND points.lcd = '" . $point['pos_off_lcd'] . "' AND poffsets.lcd = '" . $point['pos_off_lcd'] . "' AND points.seg_lcd = '" . $data['lcd'] . "'")))
-				break;
-			if(!($point = $result->fetch(PDO::FETCH_ASSOC)))
+			$next->bindValue(':lcd_a', $point['pos_off_lcd'], PDO::PARAM_INT);
+			$next->bindValue(':lcd_b', $point['pos_off_lcd'], PDO::PARAM_INT);
+			$next->execute();
+
+			if(!($point = $next->fetch(PDO::FETCH_ASSOC)))
 				break;
 		}
 	}
@@ -120,11 +183,38 @@ function find_segment_points($data)
 function find_road_points($data)
 {
 	global $pdo;
+	static $rfirst = null;
+	static $rnext = null;
+	static $lfirst = null;
+	static $lnext = null;
 
 	$segs = array();
+
 	if($data['tcd'] == 2)
 	{
-		if(($result = $pdo->query("SELECT points.*, poffsets.neg_off_lcd, poffsets.pos_off_lcd FROM points, poffsets WHERE points.cid = '" . $data['cid'] . "' AND poffsets.cid = '" . $data['cid'] . "' AND points.tabcd = '" . $data['tabcd'] . "' AND poffsets.tabcd = '" . $data['tabcd'] . "' AND points.lcd = poffsets.lcd AND (points.roa_lcd = '" . $data['lcd'] . "' OR EXISTS (SELECT * FROM segments WHERE cid = '" . $data['cid'] . "' AND tabcd = '" . $data['tabcd'] . "' AND roa_lcd = '" . $data['lcd'] . "' AND lcd = points.seg_lcd))")) && ($first = $point = $result->fetch(PDO::FETCH_ASSOC)))
+		if($rfirst === null)
+			$rfirst = $pdo->prepare("SELECT points.*, poffsets.neg_off_lcd, poffsets.pos_off_lcd FROM points, poffsets WHERE points.cid = :cid_a AND poffsets.cid = :cid_b AND points.tabcd = :tabcd_a AND poffsets.tabcd = :tabcd_b AND points.lcd = poffsets.lcd AND (points.roa_lcd = :lcd_a OR EXISTS (SELECT * FROM segments WHERE cid = :cid_c AND tabcd = :tabcd_c AND roa_lcd = :lcd_b AND lcd = points.seg_lcd)) LIMIT 1");
+
+		if($rnext === null)
+			$rnext = $pdo->prepare("SELECT points.*, poffsets.neg_off_lcd, poffsets.pos_off_lcd FROM points, poffsets WHERE points.cid = :cid_a AND poffsets.cid = :cid_b AND points.tabcd = :tabcd_a AND poffsets.tabcd = :tabcd_b AND points.lcd = :lcd_a AND poffsets.lcd = :lcd_b");
+
+		$rfirst->bindValue(':cid_a', $data['cid'], PDO::PARAM_INT);
+		$rfirst->bindValue(':cid_b', $data['cid'], PDO::PARAM_INT);
+		$rfirst->bindValue(':cid_c', $data['cid'], PDO::PARAM_INT);
+		$rfirst->bindValue(':tabcd_a', $data['tabcd'], PDO::PARAM_INT);
+		$rfirst->bindValue(':tabcd_b', $data['tabcd'], PDO::PARAM_INT);
+		$rfirst->bindValue(':tabcd_c', $data['tabcd'], PDO::PARAM_INT);
+		$rfirst->bindValue(':lcd_a', $data['lcd'], PDO::PARAM_INT);
+		$rfirst->bindValue(':lcd_b', $data['lcd'], PDO::PARAM_INT);
+
+		$rnext->bindValue(':cid_a', $data['cid'], PDO::PARAM_INT);
+		$rnext->bindValue(':cid_b', $data['cid'], PDO::PARAM_INT);
+		$rnext->bindValue(':tabcd_a', $data['tabcd'], PDO::PARAM_INT);
+		$rnext->bindValue(':tabcd_b', $data['tabcd'], PDO::PARAM_INT);
+
+		$rfirst->execute();
+
+		if($first = $point = $rfirst->fetch(PDO::FETCH_ASSOC))
 		{
 			$points = array();
 			for(;;)
@@ -134,9 +224,12 @@ function find_road_points($data)
 
 				if($point['pos_off_lcd'] == $first['lcd'])
 					break;
-				if(!($result = $pdo->query("SELECT points.*, poffsets.neg_off_lcd, poffsets.pos_off_lcd FROM points, poffsets WHERE points.cid = '" . $data['cid'] . "' AND poffsets.cid = '" . $data['cid'] . "' AND points.tabcd = '" . $data['tabcd'] . "' AND poffsets.tabcd = '" . $data['tabcd'] . "' AND points.lcd = '" . $point['pos_off_lcd'] . "' AND poffsets.lcd = '" . $point['pos_off_lcd'] . "'")))
-					break;
-				if(!($point = $result->fetch(PDO::FETCH_ASSOC)))
+
+				$rnext->bindValue(':lcd_a', $point['pos_off_lcd'], PDO::PARAM_INT);
+				$rnext->bindValue(':lcd_b', $point['pos_off_lcd'], PDO::PARAM_INT);
+				$rnext->execute();
+
+				if(!($point = $rnext->fetch(PDO::FETCH_ASSOC)))
 					break;
 			}
 			$segs[] = $points;
@@ -144,23 +237,44 @@ function find_road_points($data)
 	}
 	else
 	{
-		if($result = $pdo->query("SELECT points.*, poffsets.neg_off_lcd, poffsets.pos_off_lcd FROM points, poffsets WHERE points.cid = '" . $data['cid'] . "' AND poffsets.cid = '" . $data['cid'] . "' AND points.tabcd = '" . $data['tabcd'] . "' AND poffsets.tabcd = '" . $data['tabcd'] . "' AND points.lcd = poffsets.lcd AND poffsets.neg_off_lcd = '0' AND (points.roa_lcd = '" . $data['lcd'] . "' OR EXISTS (SELECT * FROM segments WHERE cid = '" . $data['cid'] . "' AND tabcd = '" . $data['tabcd'] . "' AND roa_lcd = '" . $data['lcd'] . "' AND lcd = points.seg_lcd))"))
-		{
-			while($point = $result->fetch(PDO::FETCH_ASSOC))
-			{
-				$points = array();
-				for(;;)
-				{
-					$point = find_names($point);
-					$points[] = $point;
+		if($lfirst === null)
+			$lfirst = $pdo->prepare("SELECT points.*, poffsets.neg_off_lcd, poffsets.pos_off_lcd FROM points, poffsets WHERE points.cid = :cid_a AND poffsets.cid = :cid_b AND points.tabcd = :tabcd_a AND poffsets.tabcd = :tabcd_b AND points.lcd = poffsets.lcd AND poffsets.neg_off_lcd = '0' AND (points.roa_lcd = :lcd_a OR EXISTS (SELECT * FROM segments WHERE cid = :cid_c AND tabcd = :tabcd_c AND roa_lcd = :lcd_b AND lcd = points.seg_lcd))");
 
-					if(!($result2 = $pdo->query("SELECT points.*, poffsets.neg_off_lcd, poffsets.pos_off_lcd FROM points, poffsets WHERE points.cid = '" . $data['cid'] . "' AND poffsets.cid = '" . $data['cid'] . "' AND points.tabcd = '" . $data['tabcd'] . "' AND poffsets.tabcd = '" . $data['tabcd'] . "' AND points.lcd = '" . $point['pos_off_lcd'] . "' AND poffsets.lcd = '" . $point['pos_off_lcd'] . "'")))
-						break;
-					if(!($point = $result2->fetch(PDO::FETCH_ASSOC)))
-						break;
-				}
-				$segs[] = $points;
+		if($lnext === null)
+			$lnext = $pdo->prepare("SELECT points.*, poffsets.neg_off_lcd, poffsets.pos_off_lcd FROM points, poffsets WHERE points.cid = :cid_a AND poffsets.cid = :cid_b AND points.tabcd = :tabcd_a AND poffsets.tabcd = :tabcd_b AND points.lcd = :lcd_a AND poffsets.lcd = :lcd_b");
+
+		$lfirst->bindValue(':cid_a', $data['cid'], PDO::PARAM_INT);
+		$lfirst->bindValue(':cid_b', $data['cid'], PDO::PARAM_INT);
+		$lfirst->bindValue(':cid_c', $data['cid'], PDO::PARAM_INT);
+		$lfirst->bindValue(':tabcd_a', $data['tabcd'], PDO::PARAM_INT);
+		$lfirst->bindValue(':tabcd_b', $data['tabcd'], PDO::PARAM_INT);
+		$lfirst->bindValue(':tabcd_c', $data['tabcd'], PDO::PARAM_INT);
+		$lfirst->bindValue(':lcd_a', $data['lcd'], PDO::PARAM_INT);
+		$lfirst->bindValue(':lcd_b', $data['lcd'], PDO::PARAM_INT);
+
+		$lnext->bindValue(':cid_a', $data['cid'], PDO::PARAM_INT);
+		$lnext->bindValue(':cid_b', $data['cid'], PDO::PARAM_INT);
+		$lnext->bindValue(':tabcd_a', $data['tabcd'], PDO::PARAM_INT);
+		$lnext->bindValue(':tabcd_b', $data['tabcd'], PDO::PARAM_INT);
+
+		$lfirst->execute();
+
+		while($point = $lfirst->fetch(PDO::FETCH_ASSOC))
+		{
+			$points = array();
+			for(;;)
+			{
+				$point = find_names($point);
+				$points[] = $point;
+
+				$lnext->bindValue(':lcd_a', $point['pos_off_lcd'], PDO::PARAM_INT);
+				$lnext->bindValue(':lcd_b', $point['pos_off_lcd'], PDO::PARAM_INT);
+				$lnext->execute();
+
+				if(!($point = $lnext->fetch(PDO::FETCH_ASSOC)))
+					break;
 			}
+			$segs[] = $points;
 		}
 	}
 
@@ -170,11 +284,38 @@ function find_road_points($data)
 function find_rs_segments($data)
 {
 	global $pdo;
+	static $rfirst = null;
+	static $rnext = null;
+	static $lfirst = null;
+	static $lnext = null;
 
 	$segments = array();
+
 	if($data['tcd'] == 2)
 	{
-		if(($result = $pdo->query("SELECT segments.*, soffsets.neg_off_lcd, soffsets.pos_off_lcd FROM segments, soffsets WHERE segments.cid = '" . $data['cid'] . "' AND soffsets.cid = '" . $data['cid'] . "' AND segments.tabcd = '" . $data['tabcd'] . "' AND soffsets.tabcd = '" . $data['tabcd'] . "' AND segments.lcd = soffsets.lcd AND (segments.roa_lcd = '" . $data['lcd'] . "' OR EXISTS (SELECT * FROM segments WHERE cid = '" . $data['cid'] . "' AND tabcd = '" . $data['tabcd'] . "' AND roa_lcd = '" . $data['lcd'] . "' AND lcd = segments.seg_lcd))")) && ($first = $segment = $result->fetch(PDO::FETCH_ASSOC)))
+		if($rfirst === null)
+			$rfirst = $pdo->prepare("SELECT segments.*, soffsets.neg_off_lcd, soffsets.pos_off_lcd FROM segments, soffsets WHERE segments.cid = :cid_a AND soffsets.cid = :cid_b AND segments.tabcd = :tabcd_a AND soffsets.tabcd = :tabcd_b AND segments.lcd = soffsets.lcd AND (segments.roa_lcd = :lcd_a OR EXISTS (SELECT * FROM segments WHERE cid = :cid_c AND tabcd = :tabcd_c AND roa_lcd = :lcd_b AND lcd = segments.seg_lcd))");
+
+		if($rnext === null)
+			$rnext = $pdo->prepare("SELECT segments.*, soffsets.neg_off_lcd, soffsets.pos_off_lcd FROM segments, soffsets WHERE segments.cid = :cid_a AND soffsets.cid = :cid_b AND segments.tabcd = :tabcd_a AND soffsets.tabcd = :tabcd_b AND segments.lcd = :lcd_a AND soffsets.lcd = :lcd_b");
+
+		$rfirst->bindValue(':cid_a', $data['cid'], PDO::PARAM_INT);
+		$rfirst->bindValue(':cid_b', $data['cid'], PDO::PARAM_INT);
+		$rfirst->bindValue(':cid_c', $data['cid'], PDO::PARAM_INT);
+		$rfirst->bindValue(':tabcd_a', $data['tabcd'], PDO::PARAM_INT);
+		$rfirst->bindValue(':tabcd_b', $data['tabcd'], PDO::PARAM_INT);
+		$rfirst->bindValue(':tabcd_c', $data['tabcd'], PDO::PARAM_INT);
+		$rfirst->bindValue(':lcd_a', $data['lcd'], PDO::PARAM_INT);
+		$rfirst->bindValue(':lcd_b', $data['lcd'], PDO::PARAM_INT);
+
+		$rnext->bindValue(':cid_a', $data['cid'], PDO::PARAM_INT);
+		$rnext->bindValue(':cid_b', $data['cid'], PDO::PARAM_INT);
+		$rnext->bindValue(':tabcd_a', $data['tabcd'], PDO::PARAM_INT);
+		$rnext->bindValue(':tabcd_b', $data['tabcd'], PDO::PARAM_INT);
+
+		$rfirst->execute();
+
+		if($first = $segment = $rfirst->fetch(PDO::FETCH_ASSOC))
 		{
 			$segments = array();
 			for(;;)
@@ -184,30 +325,54 @@ function find_rs_segments($data)
 
 				if($segment['pos_off_lcd'] == $first['lcd'])
 					break;
-				if(!($result = $pdo->query("SELECT segments.*, soffsets.neg_off_lcd, soffsets.pos_off_lcd FROM segments, soffsets WHERE segments.cid = '" . $data['cid'] . "' AND soffsets.cid = '" . $data['cid'] . "' AND segments.tabcd = '" . $data['tabcd'] . "' AND soffsets.tabcd = '" . $data['tabcd'] . "' AND segments.lcd = '" . $segment['pos_off_lcd'] . "' AND soffsets.lcd = '" . $segment['pos_off_lcd'] . "'")))
-					break;
-				if(!($segment = $result->fetch(PDO::FETCH_ASSOC)))
+
+				$rnext->bindValue(':lcd_a', $segment['pos_off_lcd'], PDO::PARAM_INT);
+				$rnext->bindValue(':lcd_b', $segment['pos_off_lcd'], PDO::PARAM_INT);
+				$rnext->execute();
+
+				if(!($segment = $rnext->fetch(PDO::FETCH_ASSOC)))
 					break;
 			}
 		}
 	}
 	else
 	{
-		if($result = $pdo->query("SELECT segments.*, soffsets.neg_off_lcd, soffsets.pos_off_lcd FROM segments, soffsets WHERE segments.cid = '" . $data['cid'] . "' AND soffsets.cid = '" . $data['cid'] . "' AND segments.tabcd = '" . $data['tabcd'] . "' AND soffsets.tabcd = '" . $data['tabcd'] . "' AND segments.lcd = soffsets.lcd AND soffsets.neg_off_lcd = '0' AND (segments.roa_lcd = '" . $data['lcd'] . "' OR EXISTS (SELECT * FROM segments WHERE cid = '" . $data['cid'] . "' AND tabcd = '" . $data['tabcd'] . "' AND roa_lcd = '" . $data['lcd'] . "' AND lcd = segments.seg_lcd))"))
-		{
-			while($segment = $result->fetch(PDO::FETCH_ASSOC))
-			{
-				$segments = array();
-				for(;;)
-				{
-					$segment = find_names($segment);
-					$segments[] = $segment;
+		if($lfirst === null)
+			$lfirst = $pdo->prepare("SELECT segments.*, soffsets.neg_off_lcd, soffsets.pos_off_lcd FROM segments, soffsets WHERE segments.cid = :cid_a AND soffsets.cid = :cid_b AND segments.tabcd = :tabcd_a AND soffsets.tabcd = :tabcd_b AND segments.lcd = soffsets.lcd AND soffsets.neg_off_lcd = '0' AND (segments.roa_lcd = :lcd_a OR EXISTS (SELECT * FROM segments WHERE cid = :cid_c AND tabcd = :tabcd_c AND roa_lcd = :lcd_b AND lcd = segments.seg_lcd))");
 
-					if(!($result2 = $pdo->query("SELECT segments.*, soffsets.neg_off_lcd, soffsets.pos_off_lcd FROM segments, soffsets WHERE segments.cid = '" . $data['cid'] . "' AND soffsets.cid = '" . $data['cid'] . "' AND segments.tabcd = '" . $data['tabcd'] . "' AND soffsets.tabcd = '" . $data['tabcd'] . "' AND segments.lcd = '" . $segment['pos_off_lcd'] . "' AND soffsets.lcd = '" . $segment['pos_off_lcd'] . "'")))
-						break;
-					if(!($segment = $result2->fetch(PDO::FETCH_ASSOC)))
-						break;
-				}
+		if($lnext === null)
+			$lnext = $pdo->prepare("SELECT segments.*, soffsets.neg_off_lcd, soffsets.pos_off_lcd FROM segments, soffsets WHERE segments.cid = :cid_a AND soffsets.cid = :cid_b AND segments.tabcd = :tabcd_a AND soffsets.tabcd = :tabcd_b AND segments.lcd = :lcd_a AND soffsets.lcd = :lcd_b");
+
+		$lfirst->bindValue(':cid_a', $data['cid'], PDO::PARAM_INT);
+		$lfirst->bindValue(':cid_b', $data['cid'], PDO::PARAM_INT);
+		$lfirst->bindValue(':cid_c', $data['cid'], PDO::PARAM_INT);
+		$lfirst->bindValue(':tabcd_a', $data['tabcd'], PDO::PARAM_INT);
+		$lfirst->bindValue(':tabcd_b', $data['tabcd'], PDO::PARAM_INT);
+		$lfirst->bindValue(':tabcd_c', $data['tabcd'], PDO::PARAM_INT);
+		$lfirst->bindValue(':lcd_a', $data['lcd'], PDO::PARAM_INT);
+		$lfirst->bindValue(':lcd_b', $data['lcd'], PDO::PARAM_INT);
+
+		$lnext->bindValue(':cid_a', $data['cid'], PDO::PARAM_INT);
+		$lnext->bindValue(':cid_b', $data['cid'], PDO::PARAM_INT);
+		$lnext->bindValue(':tabcd_a', $data['tabcd'], PDO::PARAM_INT);
+		$lnext->bindValue(':tabcd_b', $data['tabcd'], PDO::PARAM_INT);
+
+		$lfirst->execute();
+
+		while($segment = $lfirst->fetch(PDO::FETCH_ASSOC))
+		{
+			$segments = array();
+			for(;;)
+			{
+				$segment = find_names($segment);
+				$segments[] = $segment;
+
+				$lnext->bindValue(':lcd_a', $segment['pos_off_lcd'], PDO::PARAM_INT);
+				$lnext->bindValue(':lcd_b', $segment['pos_off_lcd'], PDO::PARAM_INT);
+				$lnext->execute();
+
+				if(!($segment = $lnext->fetch(PDO::FETCH_ASSOC)))
+					break;
 			}
 		}
 	}
@@ -217,9 +382,19 @@ function find_rs_segments($data)
 function find_area_points($data)
 {
 	global $pdo;
+	static $stmt = null;
 
-	if($result = $pdo->query("SELECT * FROM points WHERE cid = '" . $data['cid'] . "' AND tabcd = '" . $data['tabcd'] . "' AND (pol_lcd = '" . $data['lcd'] . "' OR oth_lcd = '" . $data['lcd'] . "') ORDER BY junctionnumber, rnid, n1id, n2id ASC"))
-		return array_map("find_names", $result->fetchAll(PDO::FETCH_ASSOC));
+	if($stmt === null)
+		$stmt = $pdo->prepare("SELECT * FROM points WHERE cid = :cid AND tabcd = :tabcd AND (pol_lcd = :pol_lcd OR oth_lcd = :oth_lcd) ORDER BY junctionnumber, rnid, n1id, n2id ASC");
+
+	$stmt->bindValue(':cid', $data['cid'], PDO::PARAM_INT);
+	$stmt->bindValue(':tabcd', $data['tabcd'], PDO::PARAM_INT);
+	$stmt->bindValue(':pol_lcd', $data['lcd'], PDO::PARAM_INT);
+	$stmt->bindValue(':oth_lcd', $data['lcd'], PDO::PARAM_INT);
+	$stmt->execute();
+
+	if($result = $stmt->fetchAll(PDO::FETCH_ASSOC))
+		return array_map("find_names", $result);
 	else
 		return array();
 }
@@ -227,9 +402,18 @@ function find_area_points($data)
 function find_area_segments($data)
 {
 	global $pdo;
+	static $stmt = null;
 
-	if($result = $pdo->query("SELECT * FROM segments WHERE cid = '" . $data['cid'] . "' AND tabcd = '" . $data['tabcd'] . "' AND pol_lcd = '" . $data['lcd'] . "' ORDER BY roadnumber, rnid, n1id, n2id ASC"))
-		return array_map("find_names", $result->fetchAll(PDO::FETCH_ASSOC));
+	if($stmt === null)
+		$stmt = $pdo->prepare("SELECT * FROM segments WHERE cid = :cid AND tabcd = :tabcd AND pol_lcd = :pol_lcd ORDER BY roadnumber, rnid, n1id, n2id ASC");
+
+	$stmt->bindValue(':cid', $data['cid'], PDO::PARAM_INT);
+	$stmt->bindValue(':tabcd', $data['tabcd'], PDO::PARAM_INT);
+	$stmt->bindValue(':pol_lcd', $data['lcd'], PDO::PARAM_INT);
+	$stmt->execute();
+
+	if($result = $stmt->fetchAll(PDO::FETCH_ASSOC))
+		return array_map("find_names", $result);
 	else
 		return array();
 }
@@ -237,9 +421,18 @@ function find_area_segments($data)
 function find_area_roads($data)
 {
 	global $pdo;
+	static $stmt = null;
 
-	if($result = $pdo->query("SELECT * FROM roads WHERE cid = '" . $data['cid'] . "' AND tabcd = '" . $data['tabcd'] . "' AND pol_lcd = '" . $data['lcd'] . "' ORDER BY roadnumber, rnid, n1id, n2id ASC"))
-		return array_map("find_names", $result->fetchAll(PDO::FETCH_ASSOC));
+	if($stmt === null)
+		$stmt = $pdo->prepare("SELECT * FROM roads WHERE cid = :cid AND tabcd = :tabcd AND pol_lcd = :pol_lcd ORDER BY roadnumber, rnid, n1id, n2id ASC");
+
+	$stmt->bindValue(':cid', $data['cid'], PDO::PARAM_INT);
+	$stmt->bindValue(':tabcd', $data['tabcd'], PDO::PARAM_INT);
+	$stmt->bindValue(':pol_lcd', $data['lcd'], PDO::PARAM_INT);
+	$stmt->execute();
+
+	if($result = $stmt->fetchAll(PDO::FETCH_ASSOC))
+		return array_map("find_names", $result);
 	else
 		return array();
 }
@@ -247,9 +440,18 @@ function find_area_roads($data)
 function find_area_admins($data)
 {
 	global $pdo;
+	static $stmt = null;
 
-	if($result = $pdo->query("SELECT * FROM administrativearea WHERE cid = '" . $data['cid'] . "' AND tabcd = '" . $data['tabcd'] . "' AND pol_lcd = '" . $data['lcd'] . "' ORDER BY nid ASC"))
-		return array_map("find_names", $result->fetchAll(PDO::FETCH_ASSOC));
+	if($stmt === null)
+		$stmt = $pdo->prepare("SELECT * FROM administrativearea WHERE cid = :cid AND tabcd = :tabcd AND pol_lcd = :pol_lcd ORDER BY nid ASC");
+
+	$stmt->bindValue(':cid', $data['cid'], PDO::PARAM_INT);
+	$stmt->bindValue(':tabcd', $data['tabcd'], PDO::PARAM_INT);
+	$stmt->bindValue(':pol_lcd', $data['lcd'], PDO::PARAM_INT);
+	$stmt->execute();
+
+	if($result = $stmt->fetchAll(PDO::FETCH_ASSOC))
+		return array_map("find_names", $result);
 	else
 		return array();
 }
@@ -257,9 +459,18 @@ function find_area_admins($data)
 function find_area_others($data)
 {
 	global $pdo;
+	static $stmt = null;
 
-	if($result = $pdo->query("SELECT * FROM otherareas WHERE cid = '" . $data['cid'] . "' AND tabcd = '" . $data['tabcd'] . "' AND pol_lcd = '" . $data['lcd'] . "' ORDER BY nid ASC"))
-		return array_map("find_names", $result->fetchAll(PDO::FETCH_ASSOC));
+	if($stmt === null)
+		$stmt = $pdo->prepare("SELECT * FROM otherareas WHERE cid = :cid AND tabcd = :tabcd AND pol_lcd = :pol_lcd ORDER BY nid ASC");
+
+	$stmt->bindValue(':cid', $data['cid'], PDO::PARAM_INT);
+	$stmt->bindValue(':tabcd', $data['tabcd'], PDO::PARAM_INT);
+	$stmt->bindValue(':pol_lcd', $data['lcd'], PDO::PARAM_INT);
+	$stmt->execute();
+
+	if($result = $stmt->fetchAll(PDO::FETCH_ASSOC))
+		return array_map("find_names", $result);
 	else
 		return array();
 }
@@ -267,13 +478,17 @@ function find_area_others($data)
 function find_country($cid)
 {
 	global $pdo;
+	static $stmt = null;
 
-	$result = $pdo->query("SELECT * FROM countries WHERE cid = '$cid'");
-	if(!$result)
+	if($stmt === null)
+		$stmt = $pdo->prepare("SELECT * FROM countries WHERE cid = :cid");
+
+	$stmt->bindValue(':cid', $cid, PDO::PARAM_INT);
+	$stmt->execute();
+
+	if(!($data = $stmt->fetch(PDO::FETCH_ASSOC)))
 		return false;
-	$data = $result->fetch(PDO::FETCH_ASSOC);
-	if(!$data)
-		return false;
+
 	return $data;
 }
 ?>

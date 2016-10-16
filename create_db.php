@@ -183,10 +183,10 @@ for(;;)
 
 	$data = array_combine($header, explode(";", $text, count($header)));
 
-	$stmt->bindValue('class', $data['CLASS'], PDO::PARAM_STR);
-	$stmt->bindValue('tcd', $data['TCD'], PDO::PARAM_INT);
-	$stmt->bindValue('stcd', $data['STCD'], PDO::PARAM_INT);
-	$stmt->bindValue('tdesc', $data['TDESC'], PDO::PARAM_STR);
+	$stmt->bindValue(':class', $data['CLASS'], PDO::PARAM_STR);
+	$stmt->bindValue(':tcd', $data['TCD'], PDO::PARAM_INT);
+	$stmt->bindValue(':stcd', $data['STCD'], PDO::PARAM_INT);
+	$stmt->bindValue(':tdesc', $data['TDESC'], PDO::PARAM_STR);
 
 	if($stmt->execute() === false)
 	{
