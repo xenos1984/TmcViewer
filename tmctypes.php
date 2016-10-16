@@ -23,7 +23,7 @@ function tmc_types()
 	$result = $pdo->query("SELECT * FROM types ORDER BY class, tcd, stcd ASC");
 	while($data = $result->fetch(PDO::FETCH_ASSOC))
 	{
-		echo "<tr><td><a href=\"tmcview.php?cid=$cid&amp;tabcd=$tabcd&amp;class=" . $data['class'] . "&amp;tcd=" . $data['tcd'] . "&amp;stcd=" . $data['stcd'] . "\">" . $data['class'] . $data['tcd'] . "." . $data['stcd'] . "</a></td><td>" . $data['desc'] . "</td></tr>\n";
+		echo "<tr><td><a href=\"tmcview.php?cid=$cid&amp;tabcd=$tabcd&amp;class=" . $data['class'] . "&amp;tcd=" . $data['tcd'] . "&amp;stcd=" . $data['stcd'] . "\">" . $data['class'] . $data['tcd'] . "." . $data['stcd'] . "</a></td><td>" . $data['tdesc'] . "</td></tr>\n";
 	}
 ?>
 </table>
