@@ -17,7 +17,7 @@ function tmc_search()
 <?php
 	$limit = 50;
 
-	echo "<h1>Search for " . trim($_REQUEST['q']) . "</h1>\n";
+	echo "<h1>Search for " . htmlspecialchars(trim($_REQUEST['q'])) . "</h1>\n";
 
 	$q = $pdo->quote('%' . trim($_REQUEST['q']) . '%');
 	$stmt = "SELECT * FROM names WHERE ";
